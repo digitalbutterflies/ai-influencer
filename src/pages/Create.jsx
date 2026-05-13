@@ -805,12 +805,9 @@ function Step5({ data, onFinish, onReset, hfConnected, onConnected }) {
     return (
       <div>
         <div style={{ marginBottom: 32 }}>
-          <h2 style={{ fontSize: 32, fontWeight: 800, letterSpacing: '-1px', color: L.text, marginBottom: 8 }}>Almost there</h2>
-          <p style={{ fontSize: 15, color: L.textSub }}>Connect your Higgsfield account first.</p>
+          <h2 style={{ fontSize: 32, fontWeight: 800, letterSpacing: '-1px', color: L.text, marginBottom: 8 }}>Connect Higgsfield to generate</h2>
         </div>
-        <div style={{ background: 'rgba(139,92,246,0.06)', border: '1.5px solid rgba(139,92,246,0.18)', borderRadius: 18, padding: '24px' }}>
-          <div style={{ fontSize: 15, fontWeight: 700, color: '#7C3AED', marginBottom: 8 }}>Connect Higgsfield</div>
-          <div style={{ fontSize: 14, color: L.textSub, marginBottom: 18, lineHeight: 1.5 }}>Connect your Higgsfield account to start generating images.</div>
+        <div style={{ background: 'rgba(201,255,0,0.06)', border: '1.5px solid rgba(201,255,0,0.35)', borderRadius: 18, padding: '24px' }}>
           <button
             onClick={doConnect}
             disabled={connectingHF}
@@ -1016,10 +1013,31 @@ export default function Create() {
         <StepIndicator current={step} />
 
         {!hfConnected && step < 5 && (
-          <div style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '11px 15px', borderRadius: 12, background: 'rgba(139,92,246,0.06)', border: '1.5px solid rgba(139,92,246,0.14)', marginBottom: 32 }}>
-            <span style={{ fontSize: 13 }}>🔗</span>
-            <span style={{ fontSize: 13, color: L.textSub, flex: 1 }}>Connect your Higgsfield account first.</span>
-            <button onClick={connectFromBanner} style={{ fontSize: 12, fontWeight: 700, color: '#7C3AED', background: 'none', border: 'none', cursor: 'pointer', whiteSpace: 'nowrap', padding: 0 }}>Connect →</button>
+          <div style={{
+            marginBottom: 32, borderRadius: 14, padding: '1.5px',
+            background: '#C9FF00',
+            animation: 'hf-float 3s ease-in-out infinite',
+            boxShadow: '0 4px 24px rgba(201,255,0,0.25)',
+          }}>
+            <div style={{
+              borderRadius: 13, padding: '11px 14px',
+              background: 'color-mix(in srgb, var(--bg) 92%, #C9FF00 8%)',
+              backdropFilter: 'blur(12px)',
+              display: 'flex', alignItems: 'center', gap: 10,
+            }}>
+              <img src="/hf-icon.png" alt="" style={{ width: 32, height: 32, borderRadius: 9, flexShrink: 0, boxShadow: '0 2px 8px rgba(201,255,0,0.5)', display: 'block' }} />
+              <span style={{ flex: 1, fontSize: 13, fontWeight: 700, color: 'var(--text-primary)', whiteSpace: 'nowrap' }}>Connect to Higgsfield</span>
+              <button onClick={connectFromBanner} style={{
+                flexShrink: 0, padding: '7px 14px', borderRadius: 8,
+                background: '#C9FF00',
+                color: '#0A0A0A', fontSize: 12, fontWeight: 800, border: 'none', cursor: 'pointer',
+                boxShadow: '0 2px 8px rgba(201,255,0,0.4)',
+                whiteSpace: 'nowrap', transition: 'opacity 0.15s',
+              }}
+                onMouseEnter={e => e.currentTarget.style.opacity = '0.8'}
+                onMouseLeave={e => e.currentTarget.style.opacity = '1'}
+              >Connect →</button>
+            </div>
           </div>
         )}
 

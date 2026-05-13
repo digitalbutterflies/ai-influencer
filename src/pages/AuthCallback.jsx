@@ -1,12 +1,15 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { handleOAuthCallback } from '../utils/higgsfieldAuth'
 
 export default function AuthCallback() {
   const navigate = useNavigate()
   const [error, setError] = useState(null)
+  const ran = useRef(false)
 
   useEffect(() => {
+    if (ran.current) return
+    ran.current = true
     const params = new URLSearchParams(window.location.search)
     const code = params.get('code')
     const state = params.get('state')

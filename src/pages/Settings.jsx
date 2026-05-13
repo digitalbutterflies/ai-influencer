@@ -64,7 +64,7 @@ export default function Settings() {
             {(['light', 'dark']).map(val => {
               const on = theme === val
               return (
-                <button key={val} onClick={() => { if (!on) toggle() }} style={{
+                <button key={val} onClick={e => { if (!on) toggle(e.clientX, e.clientY) }} style={{
                   flex: 1, padding: '14px 12px', borderRadius: 12, cursor: on ? 'default' : 'pointer',
                   border: `1.5px solid ${on ? '#8B5CF6' : 'var(--border)'}`,
                   background: on ? 'rgba(139,92,246,0.09)' : 'var(--bg)',

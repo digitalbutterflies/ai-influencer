@@ -73,8 +73,8 @@ export async function startHiggsfieldOAuthPopup() {
 
   if (!referralDone) {
     localStorage.setItem('hf_referral_fired', '1')
-    // Give the referral page ~1.2 s to load and set its cookie, then send to OAuth
-    setTimeout(() => { try { popup.location.href = authUrl } catch (_) {} }, 1200)
+    // Give the referral page ~2.5 s to load and set its cookie, then send to OAuth
+    setTimeout(() => { try { popup.location.href = authUrl } catch (_) {} }, 2500)
   }
 
   return new Promise((resolve, reject) => {
@@ -120,7 +120,7 @@ export async function handleOAuthCallback(code, state) {
 export function getHFToken() { return localStorage.getItem('hf_access_token') }
 export function isHFConnected() { return !!getHFToken() }
 export function disconnectHF() {
-  ['hf_access_token', 'hf_refresh_token', 'hf_client_id', 'hf_verifier', 'hf_state']
+  ['hf_access_token', 'hf_refresh_token', 'hf_verifier', 'hf_state']
     .forEach(k => localStorage.removeItem(k))
 }
 
