@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom'
 import { useInfluencers, generateId } from '../store'
 import { buildThreeVariationPrompts } from '../utils/systemPrompt'
 import { generateThreeImages } from '../utils/higgsfieldGenerate'
-import { isHFConnected, startHiggsfieldOAuth } from '../utils/higgsfieldAuth'
+import { isHFConnected, startHiggsfieldOAuth, fireReferralOnce } from '../utils/higgsfieldAuth'
 import { compressImage } from '../utils/imageUtils'
 import { gColor } from '../utils/influencerUtils'
 
@@ -792,7 +792,8 @@ function Step5({ data, onFinish, onReset }) {
 
   async function doConnect() {
     setConnectingHF(true)
-    window.open('https://higgsfield.ai/?fpr=dankieft&fp_sid=tool', '_blank', 'noopener,noreferrer')
+    fireReferralOnce()
+    localStorage.setItem('hf_return_url', '/create')
     try {
       await startHiggsfieldOAuth()
     } catch (e) {
@@ -806,7 +807,7 @@ function Step5({ data, onFinish, onReset }) {
       <div>
         <div style={{ marginBottom: 32 }}>
           <h2 style={{ fontSize: 32, fontWeight: 800, letterSpacing: '-1px', color: L.text, marginBottom: 8 }}>Almost there</h2>
-          <p style={{ fontSize: 15, color: L.textSub }}>Connect Higgsfield to unlock generation.</p>
+          <p style={{ fontSize: 15, color: L.textSub }}>Connect your Higgsfield account first.</p>
         </div>
         <div style={{ background: 'rgba(139,92,246,0.06)', border: '1.5px solid rgba(139,92,246,0.18)', borderRadius: 18, padding: '24px' }}>
           <div style={{ fontSize: 15, fontWeight: 700, color: '#7C3AED', marginBottom: 8 }}>Connect Higgsfield</div>
@@ -959,6 +960,12 @@ export default function Create() {
     setStep(s => s + 1)
   }
 
+  async function connectFromBanner() {
+    fireReferralOnce()
+    localStorage.setItem('hf_return_url', '/create')
+    try { await startHiggsfieldOAuth() } catch (e) { alert('Failed to connect: ' + e.message) }
+  }
+
   function resetAll() {
     setStep(1)
     setData({ name: '', gender: '', age: '', niches: [], nicheCustom: '', backstory: '', personality: 50, physicalDesc: '', vibeWords: [], faceRef: null, styleRef: null })
@@ -1008,8 +1015,8 @@ export default function Create() {
         {!isHFConnected() && step < 5 && (
           <div style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '11px 15px', borderRadius: 12, background: 'rgba(139,92,246,0.06)', border: '1.5px solid rgba(139,92,246,0.14)', marginBottom: 32 }}>
             <span style={{ fontSize: 13 }}>🔗</span>
-            <span style={{ fontSize: 13, color: L.textSub, flex: 1 }}>Connect Higgsfield before step 5 to generate images.</span>
-            <a href="/settings" style={{ fontSize: 12, fontWeight: 700, color: '#7C3AED', textDecoration: 'none', whiteSpace: 'nowrap' }}>Connect →</a>
+            <span style={{ fontSize: 13, color: L.textSub, flex: 1 }}>Connect your Higgsfield account first.</span>
+            <button onClick={connectFromBanner} style={{ fontSize: 12, fontWeight: 700, color: '#7C3AED', background: 'none', border: 'none', cursor: 'pointer', whiteSpace: 'nowrap', padding: 0 }}>Connect →</button>
           </div>
         )}
 

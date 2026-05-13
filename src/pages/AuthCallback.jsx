@@ -22,7 +22,11 @@ export default function AuthCallback() {
     }
 
     handleOAuthCallback(code, state)
-      .then(() => navigate('/settings?connected=1', { replace: true }))
+      .then(() => {
+        const returnUrl = localStorage.getItem('hf_return_url') || '/settings?connected=1'
+        localStorage.removeItem('hf_return_url')
+        navigate(returnUrl, { replace: true })
+      })
       .catch(e => setError(e.message))
   }, [])
 

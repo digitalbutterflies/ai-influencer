@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 import { useLocation } from 'react-router-dom'
-import { startHiggsfieldOAuth, disconnectHF, isHFConnected } from '../utils/higgsfieldAuth'
+import { startHiggsfieldOAuth, disconnectHF, isHFConnected, fireReferralOnce } from '../utils/higgsfieldAuth'
 import { useTheme } from '../context/theme'
 
 function Section({ title, children }) {
@@ -38,7 +38,8 @@ export default function Settings() {
 
   async function connectHiggsfield() {
     setHfLoading(true)
-    window.open('https://higgsfield.ai/?fpr=dankieft&fp_sid=tool', '_blank', 'noopener,noreferrer')
+    fireReferralOnce()
+    localStorage.setItem('hf_return_url', '/settings?connected=1')
     try {
       await startHiggsfieldOAuth() // redirects away
     } catch (e) {

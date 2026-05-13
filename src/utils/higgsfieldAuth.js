@@ -90,3 +90,11 @@ export function disconnectHF() {
   ['hf_access_token', 'hf_refresh_token', 'hf_client_id', 'hf_verifier', 'hf_state']
     .forEach(k => localStorage.removeItem(k))
 }
+
+// Fire the referral link once per device so affiliate tracking is captured.
+// Must be called from a user-interaction handler (click) to avoid popup blockers.
+export function fireReferralOnce() {
+  if (localStorage.getItem('hf_referral_fired')) return
+  window.open('https://higgsfield.ai/?fpr=dankieft&fp_sid=tool', '_blank', 'noopener,noreferrer')
+  localStorage.setItem('hf_referral_fired', '1')
+}
