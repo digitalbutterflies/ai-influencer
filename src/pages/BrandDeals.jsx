@@ -1,11 +1,20 @@
 import { useState, useRef } from 'react'
 import { useBrandDeals, generateId } from '../store'
 import { compressImage } from '../utils/imageUtils'
+import Lightbox from '../components/Lightbox'
+
+function downloadImage(src, filename) {
+  const a = document.createElement('a')
+  a.href = src
+  a.download = filename
+  a.click()
+}
 
 function NewDealModal({ onClose, onSave }) {
   const [brand, setBrand] = useState('')
   const [category, setCategory] = useState('')
   const [image, setImage] = useState(null)
+  const [dragging, setDragging] = useState(false)
   const fileRef = useRef()
 
   function handleFile(e) {
@@ -15,6 +24,16 @@ function NewDealModal({ onClose, onSave }) {
     r.onload = ev => compressImage(ev.target.result).then(setImage)
     r.readAsDataURL(f)
     e.target.value = ''
+  }
+
+  function handleDrop(e) {
+    e.preventDefault()
+    setDragging(false)
+    const f = e.dataTransfer.files[0]
+    if (!f || !f.type.startsWith('image/')) return
+    const r = new FileReader()
+    r.onload = ev => compressImage(ev.target.result).then(setImage)
+    r.readAsDataURL(f)
   }
 
   return (
@@ -51,29 +70,30 @@ function NewDealModal({ onClose, onSave }) {
           />
         </label>
 
-        {/* Image upload */}
         <div style={{ marginBottom: 24 }}>
           <div style={{ fontSize: 11, fontWeight: 700, color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: 8 }}>Brand Image</div>
           <div
             onClick={() => fileRef.current.click()}
+            onDragOver={e => { e.preventDefault(); setDragging(true) }}
+            onDragLeave={() => setDragging(false)}
+            onDrop={handleDrop}
             style={{
               width: '100%', aspectRatio: '16/9',
               borderRadius: 10,
-              border: image ? 'none' : '1.5px dashed var(--border)',
-              background: image ? 'transparent' : 'var(--bg-tertiary)',
+              border: image ? 'none' : `1.5px dashed ${dragging ? '#8B5CF6' : 'var(--border)'}`,
+              background: image ? 'transparent' : dragging ? 'rgba(139,92,246,0.07)' : 'var(--bg-tertiary)',
               overflow: 'hidden',
               cursor: 'pointer',
               display: 'flex', alignItems: 'center', justifyContent: 'center',
               flexDirection: 'column', gap: 6,
+              transition: 'border-color 0.15s, background 0.15s',
             }}
-            onMouseEnter={e => { if (!image) e.currentTarget.style.borderColor = 'var(--accent)' }}
-            onMouseLeave={e => { if (!image) e.currentTarget.style.borderColor = 'var(--border)' }}
           >
             {image
               ? <img src={image} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
               : <>
-                  <span style={{ fontSize: 22, opacity: 0.25 }}>+</span>
-                  <span style={{ fontSize: 12, color: 'var(--text-tertiary)' }}>Upload brand image</span>
+                  <span style={{ fontSize: 22, opacity: dragging ? 0.6 : 0.25 }}>+</span>
+                  <span style={{ fontSize: 12, color: 'var(--text-tertiary)' }}>{dragging ? 'Drop to upload' : 'Upload or drag & drop'}</span>
                 </>
             }
           </div>
@@ -85,7 +105,13 @@ function NewDealModal({ onClose, onSave }) {
           <button
             disabled={!brand.trim()}
             onClick={() => onSave({ brand, category, image })}
-            style={{ flex: 1, padding: 10, borderRadius: 8, background: brand.trim() ? 'var(--text-primary)' : 'var(--border)', color: brand.trim() ? '#fff' : 'var(--text-tertiary)', fontSize: 14, fontWeight: 600 }}
+            style={{
+              flex: 1, padding: 10, borderRadius: 8, fontSize: 14, fontWeight: 600,
+              background: brand.trim() ? 'linear-gradient(135deg,#EC4899,#8B5CF6)' : 'var(--border)',
+              color: brand.trim() ? '#fff' : 'var(--text-tertiary)',
+              boxShadow: brand.trim() ? '0 2px 12px rgba(139,92,246,0.3)' : 'none',
+              transition: 'all 0.15s',
+            }}
           >Add Deal</button>
         </div>
       </div>
@@ -93,38 +119,79 @@ function NewDealModal({ onClose, onSave }) {
   )
 }
 
-function DealCard({ deal, onDelete }) {
+function DealCard({ deal, onDelete, onOpen, onRename }) {
+  const [editing, setEditing] = useState(false)
+  const [name, setName] = useState(deal.brand)
+
+  function commitRename() {
+    const trimmed = name.trim()
+    if (trimmed) onRename(deal.id, trimmed)
+    else setName(deal.brand)
+    setEditing(false)
+  }
+
   return (
-    <div style={{
-      background: 'var(--surface)',
-      borderRadius: 'var(--radius-lg)',
-      overflow: 'hidden',
-      boxShadow: 'var(--shadow-sm)',
-      border: '1px solid var(--border-subtle)',
-      transition: 'box-shadow 0.18s, transform 0.18s',
-    }}
+    <div
+      onClick={() => !editing && deal.image && onOpen()}
+      style={{
+        background: 'var(--surface)',
+        borderRadius: 'var(--radius-lg)',
+        overflow: 'hidden',
+        boxShadow: 'var(--shadow-sm)',
+        border: '1px solid var(--border-subtle)',
+        transition: 'box-shadow 0.18s, transform 0.18s',
+        cursor: deal.image && !editing ? 'zoom-in' : 'default',
+      }}
       onMouseEnter={e => { e.currentTarget.style.boxShadow = 'var(--shadow-md)'; e.currentTarget.style.transform = 'translateY(-2px)' }}
       onMouseLeave={e => { e.currentTarget.style.boxShadow = 'var(--shadow-sm)'; e.currentTarget.style.transform = 'translateY(0)' }}
     >
-      {/* Image */}
       <div style={{ aspectRatio: '16/9', background: 'var(--bg-tertiary)', overflow: 'hidden' }}>
         {deal.image
-          ? <img src={deal.image} alt={deal.brand} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+          ? <img src={deal.image} alt={deal.brand} style={{ width: '100%', height: '100%', objectFit: 'cover', transition: 'transform 0.3s', display: 'block' }}
+              onMouseEnter={e => e.currentTarget.style.transform = 'scale(1.04)'}
+              onMouseLeave={e => e.currentTarget.style.transform = 'scale(1)'}
+            />
           : <div style={{ width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
               <span style={{ fontSize: 32, fontWeight: 800, color: 'var(--text-tertiary)', opacity: 0.3 }}>{deal.brand[0]}</span>
             </div>
         }
       </div>
 
-      <div style={{ padding: '14px 16px', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-        <div>
-          <div style={{ fontWeight: 700, fontSize: 15 }}>{deal.brand}</div>
+      <div style={{ padding: '14px 16px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8 }}>
+        <div style={{ flex: 1, minWidth: 0 }}>
+          {editing ? (
+            <input
+              autoFocus
+              value={name}
+              onChange={e => setName(e.target.value)}
+              onClick={e => e.stopPropagation()}
+              onBlur={commitRename}
+              onKeyDown={e => { if (e.key === 'Enter') commitRename(); if (e.key === 'Escape') { setName(deal.brand); setEditing(false) } }}
+              style={{ fontSize: 15, fontWeight: 700, border: 'none', background: 'transparent', color: 'var(--text-primary)', outline: 'none', width: '100%' }}
+            />
+          ) : (
+            <div style={{ fontWeight: 700, fontSize: 15, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{deal.brand}</div>
+          )}
           {deal.category && <div style={{ fontSize: 12, color: 'var(--text-tertiary)', marginTop: 2 }}>{deal.category}</div>}
         </div>
-        <button
-          onClick={() => onDelete(deal.id)}
-          style={{ width: 28, height: 28, borderRadius: '50%', background: '#FFF5F5', color: '#FF3B30', fontSize: 16, display: 'flex', alignItems: 'center', justifyContent: 'center' }}
-        >×</button>
+        <div style={{ display: 'flex', gap: 6, flexShrink: 0 }} onClick={e => e.stopPropagation()}>
+          <button
+            title="Rename"
+            onClick={() => setEditing(true)}
+            style={{ padding: '4px 8px', borderRadius: 6, fontSize: 12, color: 'var(--text-secondary)', background: 'var(--bg-tertiary)' }}
+          >Rename</button>
+          {deal.image && (
+            <button
+              title="Download"
+              onClick={() => downloadImage(deal.image, `${deal.brand}.jpg`)}
+              style={{ width: 28, height: 28, borderRadius: '50%', background: 'var(--bg-tertiary)', color: 'var(--text-secondary)', fontSize: 14, display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+            >↓</button>
+          )}
+          <button
+            onClick={() => onDelete(deal.id)}
+            style={{ width: 28, height: 28, borderRadius: '50%', background: 'rgba(255,59,48,0.1)', color: '#FF3B30', fontSize: 16, display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+          >×</button>
+        </div>
       </div>
     </div>
   )
@@ -133,6 +200,7 @@ function DealCard({ deal, onDelete }) {
 export default function BrandDeals() {
   const [deals, setDeals] = useBrandDeals()
   const [showNew, setShowNew] = useState(false)
+  const [lightboxDeal, setLightboxDeal] = useState(null)
 
   function addDeal({ brand, category, image }) {
     setDeals(prev => [...prev, { id: generateId(), brand, category, image, createdAt: Date.now() }])
@@ -140,12 +208,27 @@ export default function BrandDeals() {
   }
 
   function deleteDeal(id) {
+    const deal = deals.find(d => d.id === id)
+    if (!deal) return
+    if (!window.confirm(`Delete "${deal.brand}"?`)) return
     setDeals(prev => prev.filter(d => d.id !== id))
+  }
+
+  function renameDeal(id, brand) {
+    setDeals(prev => prev.map(d => d.id === id ? { ...d, brand } : d))
   }
 
   return (
     <div style={{ paddingTop: 'var(--nav-h)', minHeight: '100vh', background: 'var(--bg)' }}>
       {showNew && <NewDealModal onClose={() => setShowNew(false)} onSave={addDeal} />}
+
+      {lightboxDeal && (
+        <Lightbox
+          images={[lightboxDeal.image]}
+          startIndex={0}
+          onClose={() => setLightboxDeal(null)}
+        />
+      )}
 
       <div style={{ maxWidth: 960, margin: '0 auto', padding: '28px' }}>
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 28 }}>
@@ -159,8 +242,9 @@ export default function BrandDeals() {
             onClick={() => setShowNew(true)}
             style={{
               padding: '9px 20px', borderRadius: 980,
-              background: 'var(--text-primary)', color: '#fff',
+              background: 'linear-gradient(135deg,#EC4899,#8B5CF6)', color: '#fff',
               fontSize: 14, fontWeight: 600,
+              boxShadow: '0 2px 12px rgba(139,92,246,0.3)',
             }}
           >+ New Deal</button>
         </div>
@@ -174,7 +258,13 @@ export default function BrandDeals() {
         ) : (
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(220px, 1fr))', gap: 16 }}>
             {deals.map(deal => (
-              <DealCard key={deal.id} deal={deal} onDelete={deleteDeal} />
+              <DealCard
+                key={deal.id}
+                deal={deal}
+                onDelete={deleteDeal}
+                onRename={renameDeal}
+                onOpen={() => setLightboxDeal(deal)}
+              />
             ))}
           </div>
         )}

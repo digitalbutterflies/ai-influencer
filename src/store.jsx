@@ -15,7 +15,6 @@ function useLocalStorage(key, initial) {
       localStorage.setItem(key, JSON.stringify(value))
     } catch (e) {
       console.warn('localStorage quota exceeded — data not saved', e)
-      alert('Storage full — your last change could not be saved. Try removing some images to free up space.')
     }
   }, [key, value])
 

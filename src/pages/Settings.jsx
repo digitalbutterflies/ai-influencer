@@ -138,7 +138,7 @@ export default function Settings() {
                 <div style={{ width: 7, height: 7, borderRadius: '50%', background: '#34C759' }} />
                 <span style={{ fontSize: 13, fontWeight: 600, color: '#34C759' }}>Higgsfield connected</span>
               </div>
-              <button onClick={disconnectHighgsfield} style={{ padding: '7px 14px', borderRadius: 8, fontSize: 13, color: '#FF3B30', background: '#FFF5F5', border: '1px solid #FFD2D2', fontWeight: 500 }}>
+              <button onClick={disconnectHighgsfield} style={{ padding: '7px 14px', borderRadius: 8, fontSize: 13, color: '#FF3B30', background: 'rgba(255,59,48,0.08)', border: '1px solid rgba(255,59,48,0.18)', fontWeight: 500 }}>
                 Disconnect
               </button>
             </div>

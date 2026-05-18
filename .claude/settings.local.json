@@ -43,7 +43,13 @@
       "Bash(cp \"/Users/alec/Downloads/hf_20260514_105228_1f07a68f-bfa5-4618-9b5b-c012902da9e2.png\" \"/Users/alec/Desktop/Ai Influencer/public/kayla/sheet.png\")",
       "Bash(cp \"/Users/alec/Downloads/hf_20260514_130803_ad9c89b2-8144-4417-bc59-2c06c54096bc.png\" \"/Users/alec/Desktop/Ai Influencer/public/kayla/closeup1.png\")",
       "Bash(cp \"/Users/alec/Downloads/hf_20260515_040254_42c38d5c-e5e6-48f8-975d-0c9e4c7bc646.png\" \"/Users/alec/Desktop/Ai Influencer/public/kayla/closeup2.png\")",
-      "Bash(python3 -c ' *)"
+      "Bash(python3 -c ' *)",
+      "Bash(npx tsc *)",
+      "Bash(grep -n \"selected\\\\b\\\\|null.*return\\\\|^\\\\s*\\\\\\)\\\\s*$\\\\|^\\\\s*}\\\\s*$\\\\|^\\\\s*<\\\\/div\" \"/Users/alec/Desktop/Ai Influencer/src/pages/Influencers.jsx\")",
+      "Bash(awk -F: '$1>=1220 && $1<=1260')",
+      "mcp__claude_ai_Higgsfield__show_marketing_studio",
+      "Bash(npx skills *)",
+      "Bash(npx --yes vite build --mode development)"
     ]
   }
 }

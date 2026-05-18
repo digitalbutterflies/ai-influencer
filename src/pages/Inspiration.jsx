@@ -1,6 +1,14 @@
 import { useState, useRef } from 'react'
 import { useInspirationBoards, generateId } from '../store'
 import { compressImage } from '../utils/imageUtils'
+import Lightbox from '../components/Lightbox'
+
+function downloadImage(src, filename) {
+  const a = document.createElement('a')
+  a.href = src
+  a.download = filename
+  a.click()
+}
 
 function BoardCard({ board, onSelect, onRename, onDelete }) {
   const [editing, setEditing] = useState(false)
@@ -22,13 +30,12 @@ function BoardCard({ board, onSelect, onRename, onDelete }) {
       onMouseLeave={e => { e.currentTarget.style.boxShadow = 'var(--shadow-sm)'; e.currentTarget.style.transform = 'translateY(0)' }}
       onClick={() => onSelect(board.id)}
     >
-      {/* Preview grid */}
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gridTemplateRows: '1fr 1fr', aspectRatio: '4/3', background: 'var(--bg-tertiary)' }}>
         {[0,1,2,3].map(i => (
           <div key={i} style={{ overflow: 'hidden', background: 'var(--bg-tertiary)' }}>
             {previews[i]
               ? <img src={previews[i]} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
-              : <div style={{ width: '100%', height: '100%', background: `hsl(${(board.id.charCodeAt(0) * 13 + i * 30) % 360}, 10%, ${88 + i * 2}%)` }} />
+              : <div style={{ width: '100%', height: '100%', background: 'var(--bg-tertiary)' }} />
             }
           </div>
         ))}
@@ -41,8 +48,8 @@ function BoardCard({ board, onSelect, onRename, onDelete }) {
             value={name}
             onChange={e => setName(e.target.value)}
             onClick={e => e.stopPropagation()}
-            onBlur={() => { onRename(board.id, name); setEditing(false) }}
-            onKeyDown={e => { if (e.key === 'Enter') { onRename(board.id, name); setEditing(false) } }}
+            onBlur={() => { if (name.trim()) onRename(board.id, name.trim()); else setName(board.name); setEditing(false) }}
+            onKeyDown={e => { if (e.key === 'Enter') { if (name.trim()) onRename(board.id, name.trim()); else setName(board.name); setEditing(false) } if (e.key === 'Escape') { setName(board.name); setEditing(false) } }}
             style={{
               fontSize: 14, fontWeight: 600, border: 'none',
               background: 'transparent', color: 'var(--text-primary)',
@@ -57,7 +64,7 @@ function BoardCard({ board, onSelect, onRename, onDelete }) {
         )}
         <div style={{ display: 'flex', gap: 4 }} onClick={e => e.stopPropagation()}>
           <button onClick={() => setEditing(true)} style={{ padding: '4px 8px', borderRadius: 6, fontSize: 12, color: 'var(--text-secondary)', background: 'var(--bg-tertiary)' }}>Rename</button>
-          <button onClick={() => onDelete(board.id)} style={{ padding: '4px 8px', borderRadius: 6, fontSize: 12, color: '#FF3B30', background: '#FFF5F5' }}>×</button>
+          <button onClick={() => { if (!board.images?.length || window.confirm(`Delete "${board.name}" and its ${board.images.length} image${board.images.length !== 1 ? 's' : ''}?`)) onDelete(board.id) }} style={{ padding: '4px 8px', borderRadius: 6, fontSize: 12, color: '#FF3B30', background: 'rgba(255,59,48,0.1)' }}>×</button>
         </div>
       </div>
     </div>
@@ -66,6 +73,7 @@ function BoardCard({ board, onSelect, onRename, onDelete }) {
 
 function BoardDetail({ board, onBack, onUpdate }) {
   const fileRef = useRef()
+  const [lightboxIdx, setLightboxIdx] = useState(null)
 
   const boardImagesRef = useRef(board.images)
   boardImagesRef.current = board.images
@@ -86,14 +94,34 @@ function BoardDetail({ board, onBack, onUpdate }) {
     onUpdate(board.id, { images: next })
   }
 
+  function downloadAll() {
+    board.images.forEach((img, i) => {
+      setTimeout(() => downloadImage(img, `${board.name}-${i + 1}.jpg`), i * 120)
+    })
+  }
+
   return (
     <div style={{ maxWidth: 960, margin: '0 auto', padding: '24px 28px' }}>
+      {lightboxIdx !== null && (
+        <Lightbox
+          images={board.images}
+          startIndex={lightboxIdx}
+          onClose={() => setLightboxIdx(null)}
+        />
+      )}
+
       <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 24 }}>
         <button
           onClick={onBack}
           style={{ padding: '8px 14px', borderRadius: 'var(--radius-sm)', border: '1.5px solid var(--border)', fontSize: 13, fontWeight: 500, color: 'var(--text-secondary)', background: 'var(--surface)' }}
         >← Back</button>
-        <h1 style={{ fontSize: 22, fontWeight: 700, letterSpacing: '-0.4px' }}>{board.name}</h1>
+        <h1 style={{ fontSize: 22, fontWeight: 700, letterSpacing: '-0.4px', flex: 1 }}>{board.name}</h1>
+        {board.images?.length > 0 && (
+          <button
+            onClick={downloadAll}
+            style={{ padding: '8px 14px', borderRadius: 'var(--radius-sm)', border: '1.5px solid var(--border)', fontSize: 13, fontWeight: 500, color: 'var(--text-secondary)', background: 'var(--surface)', display: 'flex', alignItems: 'center', gap: 6 }}
+          >↓ Download All</button>
+        )}
       </div>
 
       <div style={{
@@ -114,17 +142,38 @@ function BoardDetail({ board, onBack, onUpdate }) {
       {board.images?.length > 0 && (
         <div style={{ columns: 3, gap: 12 }}>
           {board.images.map((img, i) => (
-            <div key={i} style={{ breakInside: 'avoid', marginBottom: 12, borderRadius: 'var(--radius-md)', overflow: 'hidden', position: 'relative', group: true }}>
-              <img src={img} alt="" style={{ width: '100%', display: 'block' }} />
-              <button
-                onClick={() => removeImage(i)}
-                style={{
-                  position: 'absolute', top: 8, right: 8,
-                  width: 26, height: 26, borderRadius: '50%',
-                  background: 'rgba(0,0,0,0.5)', color: '#fff',
-                  fontSize: 14, display: 'flex', alignItems: 'center', justifyContent: 'center',
-                }}
-              >×</button>
+            <div
+              key={i}
+              style={{ breakInside: 'avoid', marginBottom: 12, borderRadius: 'var(--radius-md)', overflow: 'hidden', position: 'relative', cursor: 'zoom-in' }}
+              onClick={() => setLightboxIdx(i)}
+            >
+              <img src={img} alt="" style={{ width: '100%', display: 'block', transition: 'transform 0.3s' }}
+                onMouseEnter={e => e.currentTarget.style.transform = 'scale(1.03)'}
+                onMouseLeave={e => e.currentTarget.style.transform = 'scale(1)'}
+              />
+              {/* Overlay buttons — shown on hover via pointer-events */}
+              <div style={{
+                position: 'absolute', top: 8, right: 8,
+                display: 'flex', gap: 6,
+              }}>
+                <button
+                  onClick={e => { e.stopPropagation(); downloadImage(img, `${board.name}-${i + 1}.jpg`) }}
+                  title="Download"
+                  style={{
+                    width: 26, height: 26, borderRadius: '50%',
+                    background: 'rgba(0,0,0,0.5)', color: '#fff',
+                    fontSize: 13, display: 'flex', alignItems: 'center', justifyContent: 'center',
+                  }}
+                >↓</button>
+                <button
+                  onClick={e => { e.stopPropagation(); removeImage(i) }}
+                  style={{
+                    width: 26, height: 26, borderRadius: '50%',
+                    background: 'rgba(0,0,0,0.5)', color: '#fff',
+                    fontSize: 14, display: 'flex', alignItems: 'center', justifyContent: 'center',
+                  }}
+                >×</button>
+              </div>
             </div>
           ))}
         </div>
@@ -169,8 +218,9 @@ export default function Inspiration() {
               onClick={createBoard}
               style={{
                 padding: '9px 20px', borderRadius: 980,
-                background: 'var(--text-primary)', color: '#fff',
+                background: 'linear-gradient(135deg,#EC4899,#8B5CF6)', color: '#fff',
                 fontSize: 14, fontWeight: 600,
+                boxShadow: '0 2px 12px rgba(139,92,246,0.3)',
               }}
             >+ New Board</button>
           </div>

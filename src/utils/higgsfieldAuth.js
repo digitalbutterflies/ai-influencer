@@ -89,6 +89,21 @@ export async function startHiggsfieldOAuthPopup() {
   })
 }
 
+function saveTokens(tokens) {
+  localStorage.setItem('hf_access_token', tokens.access_token)
+  if (tokens.expires_in) {
+    localStorage.setItem('hf_token_expires_at', String(Date.now() + tokens.expires_in * 1000))
+  }
+  if (tokens.refresh_token) localStorage.setItem('hf_refresh_token', tokens.refresh_token)
+}
+
+function needsRefresh() {
+  if (!localStorage.getItem('hf_access_token')) return true
+  const expiresAt = Number(localStorage.getItem('hf_token_expires_at'))
+  if (!expiresAt) return false
+  return Date.now() > expiresAt - 120_000 // refresh 2 min before expiry
+}
+
 export async function handleOAuthCallback(code, state) {
   if (state !== localStorage.getItem('hf_state')) throw new Error('State mismatch — please try again')
   const verifier = localStorage.getItem('hf_verifier')
@@ -110,8 +125,7 @@ export async function handleOAuthCallback(code, state) {
     throw new Error(e.error_description || 'Token exchange failed')
   }
   const tokens = await res.json()
-  localStorage.setItem('hf_access_token', tokens.access_token)
-  if (tokens.refresh_token) localStorage.setItem('hf_refresh_token', tokens.refresh_token)
+  saveTokens(tokens)
   localStorage.removeItem('hf_verifier')
   localStorage.removeItem('hf_state')
   return tokens
@@ -120,7 +134,7 @@ export async function handleOAuthCallback(code, state) {
 export function getHFToken() { return localStorage.getItem('hf_access_token') }
 export function isHFConnected() { return !!getHFToken() }
 export function disconnectHF() {
-  ['hf_access_token', 'hf_refresh_token', 'hf_verifier', 'hf_state']
+  ['hf_access_token', 'hf_refresh_token', 'hf_token_expires_at', 'hf_verifier', 'hf_state']
     .forEach(k => localStorage.removeItem(k))
 }
 
@@ -143,9 +157,15 @@ export async function refreshHFToken() {
     throw new Error('Session expired — please reconnect in Settings')
   }
   const tokens = await res.json()
-  localStorage.setItem('hf_access_token', tokens.access_token)
-  if (tokens.refresh_token) localStorage.setItem('hf_refresh_token', tokens.refresh_token)
+  saveTokens(tokens)
   return tokens.access_token
+}
+
+// Called on app focus — silently gets a fresh token if the current one is expired or close to expiring.
+export async function silentRefreshHFToken() {
+  if (!needsRefresh()) return
+  if (!localStorage.getItem('hf_refresh_token')) return
+  try { await refreshHFToken() } catch (_) { /* surfaces on next API call */ }
 }
 
 // Fire the referral link once per device so affiliate tracking is captured.

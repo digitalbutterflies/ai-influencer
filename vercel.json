@@ -1,7 +1,6 @@
 {
   "rewrites": [
-    { "source": "/api/hf/:path*", "destination": "https://mcp.higgsfield.ai/:path*" },
-    { "source": "/(.*)", "destination": "/index.html" }
+{ "source": "/(.*)", "destination": "/index.html" }
   ]
 }
 

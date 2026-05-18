@@ -105,7 +105,7 @@ export default function Nav() {
           textDecoration: 'none', transition: 'all 0.15s',
         })}
           onMouseEnter={e => { e.currentTarget.style.background = dark ? 'rgba(255,255,255,0.10)' : 'var(--bg-tertiary)' }}
-          onMouseLeave={e => { e.currentTarget.style.background = 'transparent' }}
+          onMouseLeave={e => { e.currentTarget.style.background = pathname === '/settings' ? (dark ? 'rgba(255,255,255,0.12)' : 'var(--bg-tertiary)') : 'transparent' }}
         >
           <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
             <circle cx="12" cy="12" r="3"/>

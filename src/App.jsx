@@ -1,7 +1,8 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
 import { ThemeProvider, useTheme } from './context/theme'
 import { StoreProvider } from './store'
+import { silentRefreshHFToken } from './utils/higgsfieldAuth'
 import Nav from './components/Nav'
 import Landing from './pages/Landing'
 import Influencers from './pages/Influencers'
@@ -57,6 +58,15 @@ function ThemeToggle() {
 }
 
 export default function App() {
+  useEffect(() => {
+    silentRefreshHFToken()
+    function onVisible() {
+      if (document.visibilityState === 'visible') silentRefreshHFToken()
+    }
+    document.addEventListener('visibilitychange', onVisible)
+    return () => document.removeEventListener('visibilitychange', onVisible)
+  }, [])
+
   return (
     <ThemeProvider>
     <StoreProvider>

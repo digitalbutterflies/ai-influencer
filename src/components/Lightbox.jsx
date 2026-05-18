@@ -5,6 +5,10 @@ export default function Lightbox({ images, startIndex = 0, onClose }) {
   const multi = images.length > 1
 
   useEffect(() => {
+    setIdx(i => Math.min(i, Math.max(0, images.length - 1)))
+  }, [images.length])
+
+  useEffect(() => {
     function onKey(e) {
       if (e.key === 'Escape') onClose()
       if (e.key === 'ArrowRight' && multi) setIdx(i => Math.min(i + 1, images.length - 1))

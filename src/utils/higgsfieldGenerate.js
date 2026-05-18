@@ -39,6 +39,33 @@ export function getPendingGens() {
   return JSON.parse(localStorage.getItem(PENDING_KEY) || '[]')
 }
 
+// ── Pending VIDEO generation persistence ────────────────────────
+const PENDING_VIDEO_KEY = 'hf_pending_videos'
+
+export function savePendingVideo(influencerId, jobIds, count) {
+  const list = JSON.parse(localStorage.getItem(PENDING_VIDEO_KEY) || '[]')
+  const next = list.filter(j => j.influencerId !== influencerId)
+  next.push({ influencerId, jobIds, count, startedAt: Date.now() })
+  localStorage.setItem(PENDING_VIDEO_KEY, JSON.stringify(next))
+}
+
+export function clearPendingVideo(influencerId) {
+  const list = JSON.parse(localStorage.getItem(PENDING_VIDEO_KEY) || '[]')
+  localStorage.setItem(PENDING_VIDEO_KEY, JSON.stringify(
+    list.filter(j => j.influencerId !== influencerId)
+  ))
+}
+
+export function getPendingVideo(influencerId) {
+  const list = JSON.parse(localStorage.getItem(PENDING_VIDEO_KEY) || '[]')
+  return list.find(j => j.influencerId === influencerId) || null
+}
+
+export async function resumeVideoJob(jobIds, count, onProgress, onPartialResults, isCancelled) {
+  await initSession()
+  return pollVideoJobs(jobIds, count, onProgress, onPartialResults, isCancelled)
+}
+
 async function mcpPost(body, isRetry = false) {
   const token = getHFToken()
   const headers = {
@@ -213,6 +240,21 @@ function extractVideoUrls(result) {
   return [...new Set(raw.map(u => u.replace(/[\\}"']+$/, '')))]
 }
 
+function extractShareUrls(result) {
+  const data = unwrapMCP(result)
+  // Structured fields first
+  if (Array.isArray(data?.results)) {
+    const urls = data.results
+      .map(r => r?.results?.shareUrl || r?.results?.share_url || r?.shareUrl || r?.share_url)
+      .filter(Boolean)
+    if (urls.length) return [...new Set(urls)]
+  }
+  // Text scan for the known share link pattern: higgsfield.ai/s/{shortId}
+  const str = typeof data === 'string' ? data : JSON.stringify(data)
+  const raw = str.match(/https:\/\/higgsfield\.ai\/s\/[A-Za-z0-9_-]+/g) || []
+  return [...new Set(raw.map(u => u.replace(/[\\}"']+$/, '')))]
+}
+
 async function pollVideoJobs(jobIds, total, onProgress, onPartialResults, isCancelled) {
   let lastPartialCount = 0
   for (let i = 0; i < 360; i++) { // 360 × 1.5s = 9 minutes max
@@ -225,14 +267,21 @@ async function pollVideoJobs(jobIds, total, onProgress, onPartialResults, isCanc
       const terminal = countTerminalJobs(display)
       console.log(`[HF] video poll ${i} → ${urls.length} URLs, ${terminal}/${total} terminal`)
       onProgress?.(Math.min(35 + (urls.length / total) * 60, 95))
-      // Fire partial results callback whenever new URLs arrive
+      // Fire partial results callback (CDN URLs only) whenever new URLs arrive
       if (urls.length > lastPartialCount) {
         lastPartialCount = urls.length
         onPartialResults?.(urls.slice(0, total))
       }
-      if (urls.length >= total) return urls.slice(0, total)
+      if (urls.length >= total) {
+        const shareUrls = extractShareUrls(display)
+        console.log(`[HF] share URLs found:`, shareUrls)
+        return { urls: urls.slice(0, total), shareUrls: shareUrls.slice(0, total) }
+      }
       if (terminal >= total) {
-        if (urls.length > 0) return urls.slice(0, total)
+        if (urls.length > 0) {
+          const shareUrls = extractShareUrls(display)
+          return { urls: urls.slice(0, total), shareUrls: shareUrls.slice(0, total) }
+        }
         throw new Error('Video generation failed — all jobs ended without output')
       }
     } catch (e) {
@@ -279,21 +328,12 @@ async function uploadAudioFile(dataUrl) {
   return cdnUrl
 }
 
-export async function generateVideo({ prompt, aspectRatio = '9:16', duration = 8, count = 1, referenceImages = [], audioRef = null, model = 'seedance_2_0', resolution = '1080p', onProgress, onPartialResults, isCancelled }) {
+export async function generateVideo({ prompt, aspectRatio = '9:16', duration = 8, count = 1, referenceImages = [], audioRef = null, model = 'seedance_2_0', resolution = '1080p', onProgress, onPartialResults, isCancelled, pendingKey = null }) {
   await initSession()
   onProgress?.(5)
 
-  // Upload audio first (becomes @audio_1), then images (@image_1, @image_2, ...)
+  // Images first (@image_1, @image_2, ...), then audio (@audio_1)
   const medias = []
-
-  if (audioRef) {
-    try {
-      const audioId = await uploadAudioFile(audioRef)
-      medias.push({ value: audioId, role: 'audio' })
-    } catch (e) {
-      console.warn('[HF] audio upload failed, skipping:', e.message)
-    }
-  }
 
   // Upload all reference images in parallel — order preserved for correct @image_N mapping
   const imageMedias = (await Promise.all(
@@ -307,6 +347,15 @@ export async function generateVideo({ prompt, aspectRatio = '9:16', duration = 8
     })
   )).filter(Boolean)
   medias.push(...imageMedias)
+
+  if (audioRef) {
+    try {
+      const audioId = await uploadAudioFile(audioRef)
+      medias.push({ value: audioId, role: 'audio' })
+    } catch (e) {
+      console.warn('[HF] audio upload failed, skipping:', e.message)
+    }
+  }
 
   const params = {
     model,
@@ -328,14 +377,19 @@ export async function generateVideo({ prompt, aspectRatio = '9:16', duration = 8
   onProgress?.(30)
 
   const directUrls = results.flatMap(r => extractVideoUrls(r))
-  if (directUrls.length >= count) { onProgress?.(100); return directUrls.slice(0, count) }
+  if (directUrls.length >= count) { onProgress?.(100); return { urls: directUrls.slice(0, count), shareUrls: [] } }
 
   const jobIds = results.flatMap(r => extractJobIds(r)).filter(Boolean)
   if (!jobIds.length) throw new Error(`No job IDs returned. Response: ${JSON.stringify(unwrapMCP(results[0]))?.slice(0, 300)}`)
 
-  const urls = await pollVideoJobs(jobIds, count, onProgress, onPartialResults, isCancelled)
-  onProgress?.(100)
-  return urls.slice(0, count)
+  if (pendingKey) savePendingVideo(pendingKey, jobIds, count)
+  try {
+    const result = await pollVideoJobs(jobIds, count, onProgress, onPartialResults, isCancelled)
+    onProgress?.(100)
+    return result
+  } finally {
+    if (pendingKey) clearPendingVideo(pendingKey)
+  }
 }
 
 function extractImageUrls(result) {
@@ -399,13 +453,15 @@ function applyStyleNoteOverrides(prompts, styleNote, styleImg) {
 // Poll all jobs together in one job_display call.
 // total = number of images we expect (prompts.length), used for termination — not jobIds.length,
 // which can be inflated when Soul responses contain extra UUIDs.
-export async function pollAllJobs(jobIds, total, onProgress, staleTolerance = 8) {
+export async function pollAllJobs(jobIds, total, onProgress, staleTolerance = 8, isCancelled = null) {
   let lastResponse = null
   let lastUrlCount = 0
   let stalePolls = 0
 
   for (let i = 0; i < 100; i++) {
+    if (isCancelled?.()) throw new Error('CANCELLED')
     if (i > 0) await new Promise(r => setTimeout(r, 2500))
+    if (isCancelled?.()) throw new Error('CANCELLED')
     try {
       const display = await callTool('job_display', { ids: jobIds })
       lastResponse = display
@@ -502,7 +558,8 @@ async function uploadRefImage(dataUrl) {
 
 function modelBaseParams(model, aspectRatio) {
   if (model === 'soul_2') return { model, aspect_ratio: aspectRatio, quality: '2k' }
-  if (model === 'gpt_image_2') return { model, aspect_ratio: aspectRatio, count: 1, quality: 'high', resolution: '2k' }
+  // gpt_image_2: quality:'high' drives output — do NOT pass resolution, it overrides quality
+  if (model === 'gpt_image_2') return { model, aspect_ratio: aspectRatio, count: 1, quality: 'high' }
   return { model, aspect_ratio: aspectRatio, count: 1, resolution: '2k' }
 }
 
@@ -600,7 +657,7 @@ export async function generateImages({ prompt, count = 3, aspectRatio = '9:16', 
   await initSession()
   onProgress?.(10)
 
-  const params = { model: 'gpt_image_2', prompt, aspect_ratio: aspectRatio, count, quality: 'high', resolution: '4k' }
+  const params = { model: 'gpt_image_2', prompt, aspect_ratio: aspectRatio, count, quality: 'high' }
   if (referenceImage && referenceImage.startsWith('http')) {
     params.medias = [{ value: referenceImage, role: 'image' }]
   }
@@ -623,7 +680,7 @@ export async function generateImages({ prompt, count = 3, aspectRatio = '9:16', 
 }
 
 // Single image generation — uploads base64 ref images properly before generating
-export async function generateSingleImage({ prompt, aspectRatio = '16:9', referenceImage = null, onProgress, pendingKey = null }) {
+export async function generateSingleImage({ prompt, aspectRatio = '16:9', referenceImage = null, onProgress, pendingKey = null, onJobIds = null, isCancelled = null }) {
   await initSession()
   onProgress?.(5)
 
@@ -651,8 +708,9 @@ export async function generateSingleImage({ prompt, aspectRatio = '16:9', refere
   if (!jobIds.length) throw new Error(`No job IDs found. Response: ${JSON.stringify(unwrapMCP(result))?.slice(0, 300)}`)
 
   if (pendingKey) savePendingGen(pendingKey.influencerId, pendingKey.slot, jobIds)
+  onJobIds?.(jobIds)
   try {
-    const urls = await pollAllJobs(jobIds, 1, onProgress)
+    const urls = await pollAllJobs(jobIds, 1, onProgress, 16, isCancelled)
     onProgress?.(100)
     return urls[0] ?? null
   } finally {

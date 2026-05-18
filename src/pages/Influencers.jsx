@@ -5,7 +5,7 @@ import ImageGrid from '../components/ImageGrid'
 import MasonryGrid from '../components/MasonryGrid'
 import Lightbox from '../components/Lightbox'
 import { compressImage, downloadImage } from '../utils/imageUtils'
-import { generateSingleImage, generateThreeImages, generateVideo, initSession, pollAllJobs, getPendingGens, clearPendingGen } from '../utils/higgsfieldGenerate'
+import { generateSingleImage, generateThreeImages, generateVideo, initSession, pollAllJobs, getPendingGens, clearPendingGen, getPendingVideo, clearPendingVideo, resumeVideoJob } from '../utils/higgsfieldGenerate'
 import { buildThreeVariationPrompts } from '../utils/systemPrompt'
 import { gColor, pLabel } from '../utils/influencerUtils'
 import { useTheme } from '../context/theme'
@@ -279,11 +279,11 @@ function HeroBanner({ influencer, onDelete, pct }) {
         <div style={{display:'flex',gap:8,flexShrink:0,marginLeft:isMobile?'auto':0}}>
           <button onClick={onDelete} style={{
             padding:'8px 14px',borderRadius:8,fontSize:12,fontWeight:600,
-            background:'#FFF5F5',color:'#FF3B30',border:'1.5px solid #FFD2D2',
+            background:'rgba(255,59,48,0.08)',color:'#FF3B30',border:'1.5px solid rgba(255,59,48,0.2)',
             transition:'background 0.15s',
           }}
-            onMouseEnter={e=>{e.currentTarget.style.background='#FFE5E5'}}
-            onMouseLeave={e=>{e.currentTarget.style.background='#FFF5F5'}}
+            onMouseEnter={e=>{e.currentTarget.style.background='rgba(255,59,48,0.15)'}}
+            onMouseLeave={e=>{e.currentTarget.style.background='rgba(255,59,48,0.08)'}}
           >Delete</button>
         </div>
       </div>
@@ -293,7 +293,7 @@ function HeroBanner({ influencer, onDelete, pct }) {
 
 // ─────────────────────────────────────────────
 // Character sheet slot with inline generation
-function GenLoadingOverlay({ elapsed }) {
+function GenLoadingOverlay({ elapsed, onCancel }) {
   const m = Math.floor(elapsed / 60)
   const s = elapsed % 60
   const timeStr = `${m}:${s.toString().padStart(2, '0')}`
@@ -314,6 +314,17 @@ function GenLoadingOverlay({ elapsed }) {
         Up to 5 min<br/>
         <span style={{color:'rgba(255,255,255,0.55)',fontVariantNumeric:'tabular-nums'}}>{timeStr}</span>
       </div>
+      {onCancel && (
+        <button onClick={onCancel} style={{
+          marginTop:2, padding:'5px 14px', borderRadius:980, fontSize:11, fontWeight:600,
+          background:'rgba(255,255,255,0.10)', color:'rgba(255,255,255,0.6)',
+          border:'1px solid rgba(255,255,255,0.15)', backdropFilter:'blur(4px)',
+          transition:'background 0.15s',
+        }}
+          onMouseEnter={e=>e.currentTarget.style.background='rgba(255,255,255,0.18)'}
+          onMouseLeave={e=>e.currentTarget.style.background='rgba(255,255,255,0.10)'}
+        >Cancel</button>
+      )}
     </div>
   )
 }
@@ -326,6 +337,7 @@ function CharacterSheetSlot({ influencer, onSave, onLightbox }) {
   const [err, setErr] = useState(null)
   const [hovered, setHovered] = useState(false)
   const fileRef = useRef()
+  const cancelRef = useRef(false)
   const value = influencer.characterSheetImage
 
   useEffect(() => {
@@ -351,8 +363,15 @@ function CharacterSheetSlot({ influencer, onSave, onLightbox }) {
       .finally(() => { clearPendingGen(influencer.id, 'characterSheetImage'); setLoading(false) })
   }, [influencer.id]) // eslint-disable-line
 
+  function cancelGeneration() {
+    cancelRef.current = true
+    clearPendingGen(influencer.id, 'characterSheetImage')
+    setLoading(false); setElapsed(0)
+  }
+
   async function generate(storedParams = null) {
     if (!influencer.mainImage) { setErr('Upload a main image first — used as the face reference.'); return }
+    cancelRef.current = false
     setLoading(true); setErr(null)
     const prompt = storedParams?.prompt ?? buildCharacterSheetPrompt(influencer)
     const ar     = storedParams?.aspectRatio ?? ratio
@@ -360,13 +379,15 @@ function CharacterSheetSlot({ influencer, onSave, onLightbox }) {
       const url = await generateSingleImage({
         prompt, aspectRatio: ar, referenceImage: influencer.mainImage, onProgress: () => {},
         pendingKey: { influencerId: influencer.id, slot: 'characterSheetImage' },
+        isCancelled: () => cancelRef.current,
       })
+      if (cancelRef.current) return
       if (url) {
         saveGenParams(influencer.id, 'characterSheetImage', { prompt, aspectRatio: ar, usedReference: true })
         onSave(url); setOpen(false)
       } else setErr('No image returned — please try again')
-    } catch(e) { setErr(e.message || 'Generation failed') }
-    finally { setLoading(false) }
+    } catch(e) { if (!cancelRef.current) setErr(e.message || 'Generation failed') }
+    finally { if (!cancelRef.current) setLoading(false) }
   }
 
   function regenerate() {
@@ -382,7 +403,7 @@ function CharacterSheetSlot({ influencer, onSave, onLightbox }) {
         transition:'box-shadow 0.3s',
       }}
         onMouseEnter={()=>setHovered(true)} onMouseLeave={()=>setHovered(false)}>
-        {loading && <GenLoadingOverlay elapsed={elapsed}/>}
+        {loading && <GenLoadingOverlay elapsed={elapsed} onCancel={cancelGeneration}/>}
         {value ? (
           <>
             <img src={value} alt="Character sheet" onClick={onLightbox} style={{width:'100%',height:'100%',objectFit:'contain',borderRadius:10,cursor:'zoom-in',display:'block',background:'var(--bg-tertiary)'}}/>
@@ -507,6 +528,7 @@ function CloseUpSlot({ influencer, imageKey, label, onSave, onLightbox, promptFn
   const [err, setErr] = useState(null)
   const [hovered, setHovered] = useState(false)
   const fileRef = useRef()
+  const cancelRef = useRef(false)
   const value = influencer[imageKey]
 
   useEffect(() => {
@@ -532,8 +554,15 @@ function CloseUpSlot({ influencer, imageKey, label, onSave, onLightbox, promptFn
       .finally(() => { clearPendingGen(influencer.id, imageKey); setLoading(false) })
   }, [influencer.id, imageKey]) // eslint-disable-line
 
+  function cancelGeneration() {
+    cancelRef.current = true
+    clearPendingGen(influencer.id, imageKey)
+    setLoading(false); setElapsed(0)
+  }
+
   async function generate(storedParams = null) {
     if (!influencer.mainImage) { setErr('Upload a main image first.'); return }
+    cancelRef.current = false
     setLoading(true); setErr(null)
     const prompt = storedParams?.prompt ?? promptFn(influencer)
     const ar     = storedParams?.aspectRatio ?? genAspectRatio
@@ -543,13 +572,15 @@ function CloseUpSlot({ influencer, imageKey, label, onSave, onLightbox, promptFn
         referenceImage: influencer.mainImage,
         onProgress: () => {},
         pendingKey: { influencerId: influencer.id, slot: imageKey },
+        isCancelled: () => cancelRef.current,
       })
+      if (cancelRef.current) return
       if (url) {
         saveGenParams(influencer.id, imageKey, { prompt, aspectRatio: ar, usedReference: true })
         onSave(url)
       } else setErr('No image returned — please try again')
-    } catch(e) { setErr(e.message || 'Generation failed') }
-    finally { setLoading(false) }
+    } catch(e) { if (!cancelRef.current) setErr(e.message || 'Generation failed') }
+    finally { if (!cancelRef.current) setLoading(false) }
   }
 
   function regenerate() {
@@ -568,7 +599,7 @@ function CloseUpSlot({ influencer, imageKey, label, onSave, onLightbox, promptFn
         onMouseEnter={() => setHovered(true)}
         onMouseLeave={() => setHovered(false)}
       >
-        {loading && <GenLoadingOverlay elapsed={elapsed}/>}
+        {loading && <GenLoadingOverlay elapsed={elapsed} onCancel={cancelGeneration}/>}
         {value ? (
           <>
             <img
@@ -883,212 +914,378 @@ function domain(u){ try{return new URL(u).hostname.replace('www.','')}catch{retu
 
 // ─────────────────────────────────────────────
 // Scripts section
-const SCRIPT_STATUSES = ['Planned','Shooting','Done']
+const SCRIPT_STATUSES = ['Unposted','Posted']
 const SCRIPT_STATUS_STYLE = {
+  Unposted: {bg:'rgba(174,174,178,0.15)',color:'#6E6E73'},
+  Posted:   {bg:'rgba(52,199,89,0.12)',  color:'#34C759'},
+  // legacy
   Planned:  {bg:'rgba(174,174,178,0.15)',color:'#6E6E73'},
   Shooting: {bg:'rgba(249,115,22,0.12)', color:'#F97316'},
   Done:     {bg:'rgba(52,199,89,0.12)',  color:'#34C759'},
 }
 
-function ScriptsSection({ scripts=[], influencerPrompt='', onChange }) {
-  const [expanded,setExpanded]=useState(null)
-  const [copied,setCopied]=useState(null)
-  const [saving,setSaving]=useState(null)
+function SaveScriptModal({ onSave, onClose }) {
+  const [title, setTitle] = useState('')
 
-  function add() {
-    const s={id:generateId(),title:`Script ${scripts.length+1}`,status:'Planned',prompt:'',script:'',notes:'',videoUrl:''}
-    onChange([...scripts,s])
-    setExpanded(s.id)
-  }
-  function upd(id,k,v){ onChange(scripts.map(s=>s.id===id?{...s,[k]:v}:s)) }
-  function del(id){ onChange(scripts.filter(s=>s.id!==id)); if(expanded===id) setExpanded(null) }
-
-  function copy(text,key) {
-    navigator.clipboard.writeText(text).catch(()=>{})
-    setCopied(key); setTimeout(()=>setCopied(null),1600)
-  }
-
-  function save(id) {
-    setSaving(id)
-    setTimeout(()=>{ setExpanded(null); setSaving(null) }, 550)
+  function commit() {
+    onSave({ title: title.trim() || 'Untitled' })
   }
 
   return (
-    <div style={{display:'flex',flexDirection:'column',gap:10}}>
-      <div style={{display:'flex',justifyContent:'flex-end'}}>
+    <div onClick={onClose} style={{position:'fixed',inset:0,background:'rgba(0,0,0,0.45)',backdropFilter:'blur(6px)',display:'flex',alignItems:'center',justifyContent:'center',zIndex:500}}>
+      <div onClick={e=>e.stopPropagation()} style={{background:'var(--surface)',borderRadius:20,padding:28,width:400,maxWidth:'90vw',boxShadow:'var(--shadow-lg)'}}>
+        <div style={{fontSize:18,fontWeight:700,letterSpacing:'-0.4px',marginBottom:4}}>Save script</div>
+        <div style={{fontSize:13,color:'var(--text-tertiary)',marginBottom:18}}>Give this video a title to find it easily in Scripts.</div>
+
+        <input
+          autoFocus value={title} onChange={e=>setTitle(e.target.value)}
+          onKeyDown={e=>{if(e.key==='Enter')commit();if(e.key==='Escape')onClose()}}
+          placeholder="e.g. Product reveal, Morning routine…"
+          style={{
+            width:'100%',padding:'11px 14px',borderRadius:10,marginBottom:24,
+            border:'1.5px solid var(--border)',background:'var(--bg)',
+            fontSize:14,color:'var(--text-primary)',boxSizing:'border-box',
+          }}
+        />
+
+        <div style={{display:'flex',gap:10}}>
+          <button onClick={onClose} style={{flex:1,padding:'11px',borderRadius:10,border:'1.5px solid var(--border)',fontSize:14,fontWeight:500,color:'var(--text-secondary)',background:'transparent'}}>Cancel</button>
+          <button onClick={commit} style={{flex:2,padding:'11px',borderRadius:10,fontSize:14,fontWeight:700,background:'linear-gradient(135deg,#EC4899,#8B5CF6)',color:'#fff',border:'none',boxShadow:'0 2px 12px rgba(139,92,246,0.3)'}}>Save Script</button>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+function ScriptsSection({ scripts=[], influencerPrompt='', onChange, initialExpanded=null }) {
+  const [selectedId, setSelectedId] = useState(initialExpanded)
+  const [copied, setCopied] = useState(null)
+  const drawerRef = useRef()
+  const listRef = useRef()
+
+  // Drawer resize
+  const drawerWidthRef = useRef(Number(localStorage.getItem('scripts_drawer_width')) || 440)
+  const [drawerWidth, setDrawerWidth] = useState(drawerWidthRef.current)
+  const isDrawerDragging = useRef(false)
+  const drawerDragStartX = useRef(0)
+  const drawerDragStartW = useRef(0)
+
+  useEffect(() => {
+    function onMove(e) {
+      if (!isDrawerDragging.current) return
+      // dragging left edge: moving mouse left = wider drawer
+      const delta = drawerDragStartX.current - e.clientX
+      const w = Math.max(320, Math.min(860, drawerDragStartW.current + delta))
+      drawerWidthRef.current = w
+      if (drawerRef.current) drawerRef.current.style.width = w + 'px'
+    }
+    function onUp() {
+      if (!isDrawerDragging.current) return
+      isDrawerDragging.current = false
+      document.body.style.cursor = ''
+      document.body.style.userSelect = ''
+      setDrawerWidth(drawerWidthRef.current)
+      localStorage.setItem('scripts_drawer_width', String(Math.round(drawerWidthRef.current)))
+    }
+    window.addEventListener('mousemove', onMove)
+    window.addEventListener('mouseup', onUp)
+    return () => { window.removeEventListener('mousemove', onMove); window.removeEventListener('mouseup', onUp) }
+  }, [])
+
+  const selected = scripts.find(s => s.id === selectedId) || null
+
+  useEffect(() => {
+    if (!selectedId) return
+    function handleClick(e) {
+      if (drawerRef.current?.contains(e.target)) return
+      if (listRef.current?.contains(e.target)) return
+      setSelectedId(null)
+    }
+    document.addEventListener('mousedown', handleClick)
+    return () => document.removeEventListener('mousedown', handleClick)
+  }, [selectedId])
+
+  function add() {
+    const s = { id:generateId(), title:`Script ${scripts.length+1}`, status:'Unposted', prompt:'', script:'', videoUrls:[], postedUrl:'', createdAt: Date.now() }
+    onChange([s, ...scripts])
+    setSelectedId(s.id)
+  }
+  function upd(id, k, v) { onChange(scripts.map(s => s.id===id ? {...s,[k]:v} : s)) }
+  function del(id) {
+    if (!window.confirm('Delete this script?')) return
+    onChange(scripts.filter(s => s.id !== id))
+    setSelectedId(null)
+  }
+  function copy(text, key) {
+    navigator.clipboard.writeText(text).catch(()=>{})
+    setCopied(key); setTimeout(()=>setCopied(null), 1600)
+  }
+  function getUrls(s) {
+    if (Array.isArray(s.videoUrls)) return s.videoUrls
+    if (s.videoUrl) return [s.videoUrl]
+    return []
+  }
+  function setUrl(s, vi, val) {
+    const cur = getUrls(s); const urls = [...cur]
+    while (urls.length <= vi) urls.push('')
+    urls[vi] = val
+    upd(s.id, 'videoUrls', urls)
+  }
+  function fmtDate(ts) {
+    if (!ts) return ''
+    return new Date(ts).toLocaleDateString('en-US', { month:'short', day:'numeric' })
+  }
+
+  return (
+    <div style={{position:'relative'}}>
+      <style>{`@keyframes drawerIn{from{transform:translateX(32px);opacity:0}to{transform:translateX(0);opacity:1}}`}</style>
+
+      {/* ── Header ── */}
+      <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',marginBottom:16}}>
+        <div style={{fontSize:13,color:'var(--text-tertiary)',fontWeight:500}}>
+          {scripts.length} script{scripts.length!==1?'s':''}
+        </div>
         <button onClick={add} style={{
-          padding:'8px 18px',borderRadius:980,
+          padding:'7px 16px',borderRadius:980,
           background:'linear-gradient(135deg,#EC4899,#8B5CF6)',color:'#fff',
-          fontSize:13,fontWeight:600,display:'flex',alignItems:'center',gap:6,
-          boxShadow:'0 2px 12px rgba(139,92,246,0.35)',transition:'opacity 0.15s',
+          fontSize:12,fontWeight:700,display:'flex',alignItems:'center',gap:5,
+          boxShadow:'0 2px 10px rgba(139,92,246,0.3)',
         }}>+ New Script</button>
       </div>
 
-      {scripts.length===0&&(
+      {/* ── Empty state ── */}
+      {scripts.length===0 && (
         <div style={{textAlign:'center',padding:'52px 0',color:'var(--text-tertiary)'}}>
           <div style={{fontSize:36,marginBottom:10,opacity:.2}}>🎬</div>
           <div style={{fontSize:14,fontWeight:600,color:'var(--text-secondary)',marginBottom:6}}>No scripts yet</div>
-          <div style={{fontSize:13}}>Plan your videos — prompts, dialogue, links.</div>
+          <div style={{fontSize:13}}>Save videos from Content Studio to track them here.</div>
         </div>
       )}
 
-      {scripts.map((s,idx)=>{
-        const ss=SCRIPT_STATUS_STYLE[s.status]||SCRIPT_STATUS_STYLE.Planned
-        const open=expanded===s.id
-        const yt=ytId(s.videoUrl)
-        const isSaving=saving===s.id
-        return (
-          <div key={s.id} style={{
-            background:'var(--surface)', borderRadius:12,
-            border:'1.5px solid var(--border)',
-            overflow:'hidden',
-            boxShadow: open ? 'var(--shadow-md)' : 'var(--shadow-sm)',
-            transition:'box-shadow 0.2s',
-          }}>
-            {/* Header row */}
+      {/* ── Script cards ── */}
+      <div ref={listRef} style={{display:'flex',flexDirection:'column',gap:6}}>
+        {scripts.map(s => {
+          const ss = SCRIPT_STATUS_STYLE[s.status] || SCRIPT_STATUS_STYLE.Unposted
+          const urls = getUrls(s)
+          const videoCount = urls.filter(Boolean).length
+          const isSelected = selectedId === s.id
+          return (
             <div
-              onClick={()=>setExpanded(open?null:s.id)}
-              style={{padding:'14px 18px',display:'flex',alignItems:'center',gap:12,cursor:'pointer',userSelect:'none',
-                background: open ? 'var(--bg)' : 'transparent',
-                transition:'background 0.15s',
+              key={s.id}
+              onClick={() => setSelectedId(s.id)}
+              style={{
+                display:'flex', alignItems:'center', gap:14,
+                padding:'14px 16px', borderRadius:12, cursor:'pointer',
+                background: isSelected ? 'var(--surface)' : 'var(--bg)',
+                border: isSelected
+                  ? '1.5px solid rgba(139,92,246,0.35)'
+                  : '1.5px solid var(--border-subtle)',
+                boxShadow: isSelected ? '0 2px 12px rgba(139,92,246,0.1)' : '0 1px 3px rgba(0,0,0,0.04)',
+                transition:'all 0.15s',
+                userSelect:'none',
               }}
+              onMouseEnter={e=>{ if(!isSelected){e.currentTarget.style.borderColor='var(--border)';e.currentTarget.style.boxShadow='0 2px 8px rgba(0,0,0,0.07)'}}}
+              onMouseLeave={e=>{ if(!isSelected){e.currentTarget.style.borderColor='var(--border-subtle)';e.currentTarget.style.boxShadow='0 1px 3px rgba(0,0,0,0.04)'}}}
             >
-              <span style={{fontSize:11,fontWeight:700,color:'var(--text-tertiary)',minWidth:20}}>#{idx+1}</span>
-              <span style={{flex:1,fontSize:14,fontWeight:600,color:'var(--text-primary)'}}>{s.title}</span>
-              {s.videoUrl&&(
-                <span style={{
-                  width:20,height:20,borderRadius:5,
-                  background:'rgba(52,199,89,0.15)',
-                  display:'flex',alignItems:'center',justifyContent:'center',
-                  fontSize:9,color:'#34C759',flexShrink:0,
-                }}>▶</span>
-              )}
-              <span style={{padding:'3px 10px',borderRadius:20,fontSize:11,fontWeight:600,background:ss.bg,color:ss.color,flexShrink:0}}>{s.status}</span>
-              <span style={{fontSize:18,color:'var(--text-tertiary)',transform:open?'rotate(90deg)':'rotate(0deg)',transition:'transform 0.2s',lineHeight:1}}>›</span>
-            </div>
+              {/* Status bar */}
+              <div style={{width:3,height:36,borderRadius:2,background:ss.color,flexShrink:0,opacity:0.7}}/>
 
-            {/* Expanded body */}
-            {open&&(
-              <div style={{borderTop:'1px solid var(--border)',padding:'22px 20px',display:'flex',flexDirection:'column',gap:20}}>
-                {/* Title + Status */}
-                <div style={{display:'grid',gridTemplateColumns:'1fr auto',gap:14,alignItems:'flex-end'}}>
-                  <label>
-                    <div style={{fontSize:11,fontWeight:700,color:'var(--text-secondary)',textTransform:'uppercase',letterSpacing:'0.5px',marginBottom:6}}>Title</div>
-                    <input value={s.title} onChange={e=>upd(s.id,'title',e.target.value)}
-                      style={{width:'100%',padding:'9px 12px',borderRadius:8,border:'1.5px solid var(--border)',background:'var(--bg)',fontSize:14,color:'var(--text-primary)'}}/>
-                  </label>
-                  <div>
-                    <div style={{fontSize:11,fontWeight:700,color:'var(--text-secondary)',textTransform:'uppercase',letterSpacing:'0.5px',marginBottom:6}}>Status</div>
-                    <div style={{display:'flex',gap:5}}>
-                      {SCRIPT_STATUSES.map(st=>{
-                        const stStyle=SCRIPT_STATUS_STYLE[st]
-                        return (
-                          <button key={st} onClick={()=>upd(s.id,'status',st)} style={{
-                            padding:'7px 12px',borderRadius:8,fontSize:12,fontWeight:600,
-                            background:s.status===st?stStyle.bg:'transparent',
-                            color:s.status===st?stStyle.color:'var(--text-tertiary)',
-                            border:`1.5px solid ${s.status===st?stStyle.color+'44':'var(--border)'}`,
-                            transition:'all 0.15s',
-                          }}>{st}</button>
-                        )
-                      })}
-                    </div>
-                  </div>
-                </div>
-
-                {/* Generation Prompt */}
-                <div>
-                  <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',marginBottom:6}}>
-                    <div style={{fontSize:11,fontWeight:700,color:'var(--text-secondary)',textTransform:'uppercase',letterSpacing:'0.5px'}}>Generation Prompt</div>
-                    <div style={{display:'flex',gap:6}}>
-                      {influencerPrompt&&(
-                        <button onClick={()=>upd(s.id,'prompt',influencerPrompt)} style={{padding:'3px 9px',borderRadius:6,fontSize:11,fontWeight:500,border:'1px solid var(--border)',color:'var(--text-secondary)',background:'var(--surface)'}}>
-                          Use influencer prompt
-                        </button>
-                      )}
-                      <button onClick={()=>copy(s.prompt,`p-${s.id}`)} style={{
-                        padding:'3px 9px',borderRadius:6,fontSize:11,fontWeight:600,
-                        border:'1px solid var(--border)',
-                        color:copied===`p-${s.id}`?'#34C759':'var(--text-secondary)',
-                        background:'var(--surface)',transition:'color 0.15s',
-                      }}>{copied===`p-${s.id}`?'✓ Copied':'Copy'}</button>
-                    </div>
-                  </div>
-                  <textarea value={s.prompt} onChange={e=>upd(s.id,'prompt',e.target.value)}
-                    placeholder="Paste the Higgsfield prompt for this video scene…"
-                    rows={3}
-                    style={{width:'100%',padding:'10px 14px',borderRadius:8,border:'1.5px solid var(--border)',background:'var(--bg)',fontSize:13,color:'var(--text-primary)',resize:'vertical',lineHeight:1.6,fontFamily:'inherit'}}/>
-                </div>
-
-                {/* Script / Dialogue */}
-                <div>
-                  <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',marginBottom:6}}>
-                    <div style={{fontSize:11,fontWeight:700,color:'var(--text-secondary)',textTransform:'uppercase',letterSpacing:'0.5px'}}>Script / Dialogue</div>
-                    <button onClick={()=>copy(s.script,`s-${s.id}`)} style={{
-                      padding:'3px 9px',borderRadius:6,fontSize:11,fontWeight:600,
-                      border:'1px solid var(--border)',
-                      color:copied===`s-${s.id}`?'#34C759':'var(--text-secondary)',
-                      background:'var(--surface)',transition:'color 0.15s',
-                    }}>{copied===`s-${s.id}`?'✓ Copied':'Copy'}</button>
-                  </div>
-                  <textarea value={s.script} onChange={e=>upd(s.id,'script',e.target.value)}
-                    placeholder="What does the influencer say or narrate? Write the full dialogue here…"
-                    rows={5}
-                    style={{width:'100%',padding:'10px 14px',borderRadius:8,border:'1.5px solid var(--border)',background:'var(--bg)',fontSize:13,color:'var(--text-primary)',resize:'vertical',lineHeight:1.7,fontFamily:'inherit'}}/>
-                </div>
-
-                {/* Video URL */}
-                <div>
-                  <div style={{fontSize:11,fontWeight:700,color:'var(--text-secondary)',textTransform:'uppercase',letterSpacing:'0.5px',marginBottom:6}}>Video URL</div>
-                  <input value={s.videoUrl||''} onChange={e=>upd(s.id,'videoUrl',e.target.value)}
-                    placeholder="Paste Higgsfield / YouTube / Vimeo link once generated…"
-                    style={{width:'100%',padding:'9px 12px',borderRadius:8,border:'1.5px solid var(--border)',background:'var(--bg)',fontSize:13,color:'var(--text-primary)'}}/>
-                  {s.videoUrl&&(
-                    <div style={{marginTop:10,borderRadius:8,overflow:'hidden',border:'1px solid var(--border-subtle)'}}>
-                      {yt
-                        ?<img src={`https://img.youtube.com/vi/${yt}/mqdefault.jpg`} alt="" style={{width:'100%',display:'block',aspectRatio:'16/9',objectFit:'cover'}}/>
-                        :<a href={s.videoUrl} target="_blank" rel="noreferrer" style={{display:'flex',alignItems:'center',gap:10,padding:'10px 14px',background:'var(--bg-tertiary)',textDecoration:'none'}}>
-                          <span style={{fontSize:18,opacity:.5}}>▶</span>
-                          <span style={{fontSize:12,color:'var(--text-secondary)',overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{domain(s.videoUrl)}</span>
-                          <span style={{fontSize:11,color:'var(--text-tertiary)',marginLeft:'auto',flexShrink:0}}>Open ↗</span>
-                        </a>
-                      }
-                    </div>
-                  )}
-                </div>
-
-                {/* Notes */}
-                <div>
-                  <div style={{fontSize:11,fontWeight:700,color:'var(--text-secondary)',textTransform:'uppercase',letterSpacing:'0.5px',marginBottom:6}}>Notes</div>
-                  <input value={s.notes||''} onChange={e=>upd(s.id,'notes',e.target.value)}
-                    placeholder="Scene notes, b-roll ideas, music vibe…"
-                    style={{width:'100%',padding:'9px 12px',borderRadius:8,border:'1.5px solid var(--border)',background:'var(--bg)',fontSize:13,color:'var(--text-primary)'}}/>
-                </div>
-
-                {/* Footer */}
-                <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',paddingTop:6,borderTop:'1px solid var(--border)'}}>
-                  <button onClick={()=>del(s.id)} style={{
-                    padding:'7px 14px',borderRadius:8,border:'1.5px solid #FFD2D2',
-                    color:'#FF3B30',fontSize:13,fontWeight:500,background:'#FFF5F5',
-                    transition:'background 0.15s',
-                  }}
-                    onMouseEnter={e=>{e.currentTarget.style.background='#FFE5E5'}}
-                    onMouseLeave={e=>{e.currentTarget.style.background='#FFF5F5'}}
-                  >Delete</button>
-                  <button onClick={()=>save(s.id)} style={{
-                    padding:'8px 22px',borderRadius:8,fontSize:13,fontWeight:600,
-                    background: isSaving ? '#34C759' : 'linear-gradient(135deg,#EC4899,#8B5CF6)',
-                    color:'#fff',
-                    display:'flex',alignItems:'center',gap:6,
-                    boxShadow: isSaving ? 'none' : '0 2px 10px rgba(139,92,246,0.3)',
-                    transition:'background 0.25s',
-                  }}>{isSaving ? '✓ Saved' : 'Save'}</button>
+              {/* Title + subtitle */}
+              <div style={{flex:1,minWidth:0}}>
+                <div style={{fontSize:14,fontWeight:600,color:'var(--text-primary)',overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap',marginBottom:3}}>{s.title}</div>
+                <div style={{fontSize:11,color:'var(--text-tertiary)',display:'flex',alignItems:'center',gap:6}}>
+                  {s.meta && [s.meta.camera, s.meta.vibe, s.meta.envKey].filter(Boolean).map((t,i)=>(
+                    <span key={t}>{i>0&&<span style={{opacity:0.35,marginRight:6}}>·</span>}{t}</span>
+                  ))}
+                  {!s.meta && <span style={{opacity:0.5}}>No meta</span>}
                 </div>
               </div>
-            )}
+
+              {/* Right badges */}
+              <div style={{display:'flex',alignItems:'center',gap:7,flexShrink:0}}>
+                {videoCount > 0 && (
+                  <span style={{fontSize:11,fontWeight:600,color:'#34C759',background:'rgba(52,199,89,0.1)',padding:'3px 8px',borderRadius:20}}>▶ {videoCount}</span>
+                )}
+                {s.meta?.duration && (
+                  <span style={{fontSize:11,color:'var(--text-tertiary)',background:'var(--bg-tertiary)',padding:'3px 8px',borderRadius:20}}>{s.meta.duration}s</span>
+                )}
+                <span style={{padding:'3px 10px',borderRadius:20,fontSize:11,fontWeight:600,background:ss.bg,color:ss.color,whiteSpace:'nowrap'}}>{s.status}</span>
+                {s.createdAt && <span style={{fontSize:11,color:'var(--text-tertiary)',minWidth:34,textAlign:'right'}}>{fmtDate(s.createdAt)}</span>}
+                <span style={{fontSize:15,color:'var(--text-tertiary)',transform:isSelected?'rotate(90deg)':'rotate(0deg)',transition:'transform 0.2s',lineHeight:1,flexShrink:0}}>›</span>
+              </div>
+            </div>
+          )
+        })}
+      </div>
+
+      {/* ── Drawer ── */}
+      {selected && (() => {
+        const s = selected
+        const ss = SCRIPT_STATUS_STYLE[s.status] || SCRIPT_STATUS_STYLE.Unposted
+        const urls = getUrls(s)
+        const fieldStyle = {
+          width:'100%', padding:'10px 13px', borderRadius:10,
+          border:'1.5px solid var(--border)', background:'var(--bg)',
+          fontSize:13, color:'var(--text-primary)', fontFamily:'inherit',
+          boxSizing:'border-box', lineHeight:1.6,
+        }
+        return (
+          <div ref={drawerRef} style={{
+            position:'fixed', top:'var(--nav-h)', right:0, bottom:0,
+            width:drawerWidth, zIndex:400,
+            display:'flex', flexDirection:'row',
+            background:'var(--surface)',
+            boxShadow:'-12px 0 48px rgba(0,0,0,0.1)',
+            animation:'drawerIn 0.2s ease',
+          }}>
+            {/* Left drag handle */}
+            <div
+              onMouseDown={e=>{
+                e.preventDefault()
+                isDrawerDragging.current=true
+                drawerDragStartX.current=e.clientX
+                drawerDragStartW.current=drawerWidthRef.current
+                document.body.style.cursor='ew-resize'
+                document.body.style.userSelect='none'
+              }}
+              onMouseEnter={e=>{
+                e.currentTarget.querySelector('span').style.background='rgba(139,92,246,0.7)'
+                e.currentTarget.querySelector('span').style.width='3px'
+              }}
+              onMouseLeave={e=>{
+                if(!isDrawerDragging.current){
+                  e.currentTarget.querySelector('span').style.background='var(--border)'
+                  e.currentTarget.querySelector('span').style.width='1px'
+                }
+              }}
+              style={{width:8,flexShrink:0,cursor:'ew-resize',display:'flex',alignItems:'stretch',justifyContent:'center',zIndex:1}}
+            >
+              <span style={{display:'block',width:'1px',background:'var(--border)',transition:'background 0.15s, width 0.15s',pointerEvents:'none'}}/>
+            </div>
+            {/* Drawer content */}
+            <div style={{flex:1,display:'flex',flexDirection:'column',overflow:'hidden'}}>
+
+            {/* Header */}
+            <div style={{padding:'18px 20px 14px',borderBottom:'1px solid var(--border)',flexShrink:0}}>
+              <div style={{display:'flex',alignItems:'center',gap:10,marginBottom:10}}>
+                <div style={{width:3,height:20,borderRadius:2,background:ss.color,flexShrink:0}}/>
+                <input
+                  value={s.title}
+                  onChange={e=>upd(s.id,'title',e.target.value)}
+                  style={{flex:1,fontSize:15,fontWeight:700,border:'none',background:'transparent',color:'var(--text-primary)',outline:'none',letterSpacing:'-0.3px',minWidth:0}}
+                />
+                <button
+                  onClick={e=>{e.stopPropagation();del(s.id)}}
+                  title="Delete script"
+                  style={{width:28,height:28,borderRadius:7,border:'1px solid rgba(255,59,48,0.2)',background:'rgba(255,59,48,0.07)',color:'#FF3B30',fontSize:13,display:'flex',alignItems:'center',justifyContent:'center',flexShrink:0,cursor:'pointer'}}
+                >🗑</button>
+                <button onClick={()=>setSelectedId(null)} style={{
+                  width:28,height:28,borderRadius:7,border:'1.5px solid var(--border)',
+                  background:'var(--bg-tertiary)',color:'var(--text-secondary)',
+                  fontSize:15,display:'flex',alignItems:'center',justifyContent:'center',flexShrink:0,cursor:'pointer',
+                }}>×</button>
+              </div>
+              {/* Status pills */}
+              <div style={{display:'flex',gap:6}}>
+                {SCRIPT_STATUSES.map(st=>{
+                  const stStyle=SCRIPT_STATUS_STYLE[st]; const on=s.status===st
+                  return (
+                    <button key={st} onClick={()=>upd(s.id,'status',st)} style={{
+                      padding:'4px 14px',borderRadius:20,fontSize:11,fontWeight:600,cursor:'pointer',
+                      background:on?stStyle.bg:'transparent',
+                      color:on?stStyle.color:'var(--text-tertiary)',
+                      border:`1.5px solid ${on?stStyle.color+'55':'var(--border)'}`,
+                      transition:'all 0.15s',
+                    }}>{st}</button>
+                  )
+                })}
+              </div>
+            </div>
+
+            {/* Scrollable body */}
+            <div style={{flex:1,overflowY:'auto',padding:'20px',display:'flex',flexDirection:'column',gap:22}}>
+
+              {/* Meta chips */}
+              {s.meta && (
+                <div style={{display:'flex',flexWrap:'wrap',gap:5}}>
+                  {[
+                    s.meta.camera && `📷 ${s.meta.camera}`,
+                    s.meta.vibe && `✨ ${s.meta.vibe}`,
+                    s.meta.duration && `${s.meta.duration}s`,
+                    s.meta.aspect,
+                    s.meta.shotMode==='oner'?'1-shot':s.meta.shotMode==='multi'?'Multi-shot':null,
+                    s.meta.envKey||null,
+                    s.meta.hasProduct?'Product':null,
+                  ].filter(Boolean).map(tag=>(
+                    <span key={tag} style={{fontSize:11,fontWeight:600,padding:'4px 10px',borderRadius:20,background:'var(--bg)',color:'var(--text-secondary)',border:'1px solid var(--border)'}}>{tag}</span>
+                  ))}
+                </div>
+              )}
+
+              {/* Script */}
+              <div>
+                <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',marginBottom:8}}>
+                  <div style={{fontSize:11,fontWeight:700,color:'var(--text-tertiary)',textTransform:'uppercase',letterSpacing:'0.5px'}}>Script</div>
+                  <button onClick={()=>copy(s.script||'',`s-${s.id}`)} style={{padding:'3px 9px',borderRadius:6,fontSize:11,fontWeight:600,border:'1px solid var(--border)',color:copied===`s-${s.id}`?'#34C759':'var(--text-secondary)',background:'var(--bg)',transition:'color 0.15s',cursor:'pointer'}}>{copied===`s-${s.id}`?'✓ Copied':'Copy'}</button>
+                </div>
+                <textarea value={s.script||''} onChange={e=>upd(s.id,'script',e.target.value)}
+                  placeholder="What does the influencer say?"
+                  rows={5} style={{...fieldStyle,resize:'vertical'}}/>
+              </div>
+
+              {/* Generation Prompt */}
+              <div>
+                <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',marginBottom:8}}>
+                  <div style={{fontSize:11,fontWeight:700,color:'var(--text-tertiary)',textTransform:'uppercase',letterSpacing:'0.5px'}}>Generation Prompt</div>
+                  <div style={{display:'flex',gap:5}}>
+                    {influencerPrompt&&(
+                      <button onClick={()=>upd(s.id,'prompt',influencerPrompt)} style={{padding:'3px 9px',borderRadius:6,fontSize:11,border:'1px solid var(--border)',color:'var(--text-secondary)',background:'var(--bg)',cursor:'pointer'}}>Use influencer</button>
+                    )}
+                    <button onClick={()=>copy(s.prompt||'',`p-${s.id}`)} style={{padding:'3px 9px',borderRadius:6,fontSize:11,fontWeight:600,border:'1px solid var(--border)',color:copied===`p-${s.id}`?'#34C759':'var(--text-secondary)',background:'var(--bg)',transition:'color 0.15s',cursor:'pointer'}}>{copied===`p-${s.id}`?'✓ Copied':'Copy'}</button>
+                  </div>
+                </div>
+                <textarea value={s.prompt||''} onChange={e=>upd(s.id,'prompt',e.target.value)}
+                  placeholder="Paste the Higgsfield prompt for this video…"
+                  rows={8} style={{...fieldStyle,resize:'vertical',fontSize:12,lineHeight:1.65}}/>
+              </div>
+
+              {/* Video Links */}
+              <div>
+                <div style={{fontSize:11,fontWeight:700,color:'var(--text-tertiary)',textTransform:'uppercase',letterSpacing:'0.5px',marginBottom:8}}>Video Links</div>
+                <div style={{display:'flex',flexDirection:'column',gap:7}}>
+                  {[0,1,2].map(vi=>{
+                    const u=urls[vi]||''
+                    return (
+                      <div key={vi} style={{display:'flex',gap:7,alignItems:'center'}}>
+                        <span style={{fontSize:11,fontWeight:600,color:'var(--text-tertiary)',width:16,textAlign:'center',flexShrink:0}}>{vi+1}</span>
+                        <input value={u} onChange={e=>setUrl(s,vi,e.target.value)}
+                          placeholder="Paste share link…"
+                          style={{...fieldStyle,padding:'9px 12px',fontSize:12,flex:1}}/>
+                        {u&&<a href={u} target="_blank" rel="noreferrer" style={{width:36,height:36,borderRadius:9,fontSize:13,background:'var(--bg)',color:'var(--text-secondary)',textDecoration:'none',flexShrink:0,border:'1.5px solid var(--border)',display:'flex',alignItems:'center',justifyContent:'center'}}>↗</a>}
+                      </div>
+                    )
+                  })}
+                </div>
+              </div>
+
+              {/* Posted URL */}
+              <div>
+                <div style={{fontSize:11,fontWeight:700,color:'var(--text-tertiary)',textTransform:'uppercase',letterSpacing:'0.5px',marginBottom:8}}>Posted At</div>
+                <input value={s.postedUrl||''} onChange={e=>upd(s.id,'postedUrl',e.target.value)}
+                  placeholder="Instagram, TikTok, YouTube URL…"
+                  style={{...fieldStyle}}/>
+                {s.postedUrl&&(
+                  <a href={s.postedUrl} target="_blank" rel="noreferrer" style={{display:'flex',alignItems:'center',gap:5,marginTop:7,fontSize:11,color:'var(--accent)',textDecoration:'none'}}>
+                    <span>↗</span><span style={{overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{s.postedUrl}</span>
+                  </a>
+                )}
+              </div>
+
+            </div>
+          </div>
           </div>
         )
-      })}
+      })()}
     </div>
   )
 }
@@ -1248,20 +1445,372 @@ function DescriptionForm({ influencer, onUpdate }) {
 }
 
 // ─────────────────────────────────────────────
+// Wardrobe generator
+
+const WARDROBE_STYLES_F = [
+  { id: 'old_money',    label: 'Old Money',    icon: '🏛', outfit: 'ivory cashmere turtleneck, tailored wide-leg cream trousers, tan leather loafers, minimal gold jewelry',                                   hair: 'sleek low chignon' },
+  { id: 'clean_girl',   label: 'Clean Girl',   icon: '🫧', outfit: 'fitted white ribbed tank top, straight-leg light-wash jeans, simple gold hoops, clean white sneakers',                                    hair: 'slicked-back low bun' },
+  { id: 'streetwear',   label: 'Streetwear',   icon: '🧢', outfit: 'oversized washed graphic hoodie, baggy wide-leg cargo pants, chunky platform sneakers',                                                   hair: 'messy space buns' },
+  { id: 'glam',         label: 'Glam',         icon: '✨', outfit: 'strapless sequin bodycon mini dress, strappy barely-there heels, small diamond studs',                                                    hair: 'bouncy blowout with voluminous waves' },
+  { id: 'cottagecore',  label: 'Cottagecore',  icon: '🌸', outfit: 'white floral prairie dress with puffed sleeves, brown Mary Jane flats, wicker bag',                                                       hair: 'loose romantic braids with small dried flowers' },
+  { id: 'y2k',          label: 'Y2K',          icon: '💿', outfit: 'pink butterfly-print crop top, ultra low-rise denim mini skirt, chunky platform sneakers, tinted micro sunglasses',                       hair: 'half-up pigtails with butterfly clips' },
+  { id: 'editorial',    label: 'Editorial',    icon: '🖤', outfit: 'oversized sharp black structured blazer worn as a dress belted at waist, knee-high patent leather boots',                                  hair: 'sleek straight blowout' },
+  { id: 'bohemian',     label: 'Bohemian',     icon: '🌿', outfit: 'cream linen wide-sleeve blouse, rust-toned flowy maxi skirt, leather flat sandals, layered gold necklaces, stacked bracelets',            hair: 'loose undone beachy waves' },
+  { id: 'sporty',       label: 'Sporty',       icon: '⚡', outfit: 'fitted cropped sports bra, high-waist seamless flare leggings, clean white training sneakers',                                             hair: 'sleek high ponytail' },
+  { id: 'dark_moody',   label: 'Dark & Moody', icon: '🌙', outfit: 'sheer black long-sleeve fitted top, black leather midi skirt, black pointed ankle boots, silver rings',                                    hair: 'sleek center-part straight hair' },
+  { id: 'coastal',      label: 'Coastal',      icon: '🌊', outfit: 'white linen button-down shirt loosely tied at waist, wide-leg cream linen trousers, tan leather flat sandals',                            hair: 'loose natural waves, sun-kissed' },
+  { id: 'preppy',       label: 'Preppy',       icon: '🎓', outfit: 'fitted navy polo shirt, plaid pleated mini skirt, white knee-high socks, brown penny loafers',                                            hair: 'low twin braids with ribbon ties' },
+]
+
+const WARDROBE_STYLES_M = [
+  { id: 'old_money',    label: 'Old Money',    icon: '🏛', outfit: 'navy single-breasted blazer, crisp white oxford shirt, tailored beige chinos, tan leather loafers — no tie',                             hair: 'classic side-parted, neat and polished' },
+  { id: 'streetwear',  label: 'Streetwear',   icon: '🧢', outfit: 'oversized washed black graphic tee, baggy distressed denim jeans, clean white low-top sneakers',                                          hair: 'low skin fade, loose top' },
+  { id: 'tech_bro',    label: 'Tech Bro',     icon: '💻', outfit: 'heather grey quarter-zip fleece pullover, dark slim-fit chinos, minimalist clean white sneakers',                                          hair: 'neat, slightly tousled' },
+  { id: 'preppy',      label: 'Preppy',       icon: '🎓', outfit: 'pink Oxford button-down polo shirt, flat-front khaki chinos, brown penny loafers, leather belt',                                           hair: 'classic side part, well-groomed' },
+  { id: 'sporty',      label: 'Sporty',       icon: '⚡', outfit: 'fitted performance athletic training top, tapered jogger pants, premium running sneakers',                                                  hair: 'fresh skin fade, clean edges' },
+  { id: 'business',    label: 'Business',     icon: '👔', outfit: 'slate blue slim-fit button-down shirt, dark tailored slim trousers, brown leather oxford shoes',                                           hair: 'neat, professional, combed' },
+  { id: 'coastal',     label: 'Coastal',      icon: '🌊', outfit: 'relaxed linen white shirt slightly unbuttoned at collar, navy linen shorts, tan boat shoes, no socks',                                    hair: 'natural, lightly wind-tousled' },
+  { id: 'editorial',   label: 'Editorial',    icon: '🖤', outfit: 'oversized black structured wool coat, slim black ribbed turtleneck, straight-leg black trousers, black leather Chelsea boots',              hair: 'slicked back, very sleek' },
+  { id: 'dark_moody',  label: 'Dark & Moody', icon: '🌙', outfit: 'washed black denim jacket over black band tee, black slim-fit jeans, black creeper boots, silver chain necklace',                         hair: 'undone, messy, slightly overgrown' },
+  { id: 'bohemian',    label: 'Bohemian',     icon: '🌿', outfit: 'loose cream linen shirt open at chest, wide-leg natural linen trousers, leather sandals, stacked wooden and silver bracelets',             hair: 'loose natural curls or waves' },
+  { id: 'y2k',         label: 'Y2K',          icon: '💿', outfit: 'baggy vintage colour-block windbreaker, wide-leg track pants, chunky dad sneakers, fitted cap',                                            hair: 'buzz cut or tight cornrows' },
+  { id: 'party',       label: 'Party Night',  icon: '🪩', outfit: 'black satin shirt open two buttons, slim-fit black tailored trousers, sleek black loafers, silver watch',                                  hair: 'slicked back, polished' },
+]
+
+const HAIR_PRESETS_F = ['Sleek bun', 'High ponytail', 'Beach waves', 'Blowout', 'Space buns', 'Braids', 'Half-up', 'Curtain bangs', 'Slicked back', 'Natural curls', 'Pixie cut', 'Bob']
+const HAIR_PRESETS_M = ['Low fade', 'Side part', 'Buzz cut', 'Slicked back', 'Textured crop', 'Tousled', 'Undercut', 'Man bun', 'Cornrows', 'Afro', 'Shaved sides', 'French crop']
+
+function buildWardrobePrompt(influencer, { outfit, hair, customText }) {
+  const phys = influencer.physicalDesc ? `The subject: ${influencer.physicalDesc}. ` : ''
+  const identity = `IDENTITY LOCK — replicate exactly from reference: facial bone structure, face shape, jaw, nose bridge and tip, lip shape, eye shape and color, eyebrow arch and thickness, skin tone, skin texture and pores, all freckles, moles, marks, scars, natural asymmetries. Zero facial drift — this must be unmistakably the same person.`
+  const layout = `Output must be the exact same 4-panel character turnaround sheet as the reference image. Single row of four equally sized full-body panels with these labels in clean sans-serif capitals above each: "FRONT VIEW" | "SIDE VIEW" | "BACK VIEW" | "THREE-QUARTER VIEW". Keep identical body poses, stance, arm positions, proportions, and panel layout from the reference. Do NOT change poses, labels, panel structure, background (pure white seamless), or lighting.`
+
+  const changeParts = [
+    outfit && `outfit — ${outfit}`,
+    hair && `hairstyle — ${hair}`,
+    customText?.trim() || '',
+  ].filter(Boolean)
+  const changes = `Change only: ${changeParts.join('; ') || 'casual stylish outfit, natural hairstyle'}.`
+
+  return `Professional full-body character turnaround sheet. ${phys}Pure white seamless background throughout. Soft neutral studio lighting, perfectly flat and even across all four panels — no shadows, no color cast.
+
+${layout}
+
+${identity}
+
+${changes}
+
+Photorealistic RAW photograph quality, ultra-sharp micro detail. Shot on Hasselblad X2D 100C.`
+}
+
+function saveWardrobePending(influencerId, data) {
+  try { localStorage.setItem(`hf_wardrobe_pending_${influencerId}`, JSON.stringify({ ...data, startedAt: Date.now() })) } catch {}
+}
+function getWardrobePending(influencerId) {
+  try {
+    const d = JSON.parse(localStorage.getItem(`hf_wardrobe_pending_${influencerId}`) || 'null')
+    if (!d) return null
+    if (Date.now() - d.startedAt > 15 * 60 * 1000) { clearWardrobePending(influencerId); return null }
+    return d
+  } catch { return null }
+}
+function clearWardrobePending(influencerId) {
+  try { localStorage.removeItem(`hf_wardrobe_pending_${influencerId}`) } catch {}
+}
+
+function WardrobeGenerator({ influencer, onAdd }) {
+  const styles = influencer.gender === 'Male' ? WARDROBE_STYLES_M : WARDROBE_STYLES_F
+  const hairPresets = influencer.gender === 'Male' ? HAIR_PRESETS_M : HAIR_PRESETS_F
+  const [mode, setMode] = useState('preset')
+  const [selectedStyle, setSelectedStyle] = useState(null)
+  const [top, setTop] = useState('')
+  const [bottom, setBottom] = useState('')
+  const [hair, setHair] = useState('')
+  const [customText, setCustomText] = useState('')
+  const [generating, setGenerating] = useState(false)
+  const [progress, setProgress] = useState(0)
+  const [error, setError] = useState(null)
+  const [result, setResult] = useState(null) // { url, name } — waiting to be saved
+  const [saveName, setSaveName] = useState('')
+  const [lightboxOpen, setLightboxOpen] = useState(false)
+  const cancelRef = useRef(false)
+  const genStartRef = useRef(null)
+
+  // Time-based progress — fills 0→95% over 180s, only moves forward
+  useEffect(() => {
+    if (!generating) return
+    genStartRef.current = Date.now()
+    const timer = setInterval(() => {
+      const elapsed = Date.now() - genStartRef.current
+      setProgress(prev => Math.max(prev, Math.min(95, (elapsed / 180000) * 95)))
+    }, 500)
+    return () => clearInterval(timer)
+  }, [generating])
+
+  const refImage = influencer.characterSheetImage || null
+
+  // Resume any generation that was running when the user navigated away
+  useEffect(() => {
+    const pending = getWardrobePending(influencer.id)
+    if (!pending) return
+    cancelRef.current = false
+    setGenerating(true); setProgress(30)
+    initSession()
+      .then(() => pollAllJobs(pending.jobIds, 1, setProgress, 16, () => cancelRef.current))
+      .then(urls => { if (!cancelRef.current && urls[0]) { setResult({ url: urls[0], name: pending.label }); setSaveName(pending.label) } })
+      .catch(e => { if (!cancelRef.current) setError(e.message) })
+      .finally(() => { clearWardrobePending(influencer.id); if (!cancelRef.current) { setGenerating(false); setProgress(0) } })
+  }, [influencer.id])
+
+  function pickStyle(style) {
+    const next = style.id === selectedStyle ? null : style.id
+    setSelectedStyle(next)
+    if (next) setHair('')
+  }
+
+  const canGenerate = refImage && !generating && !result && (
+    mode === 'preset' ? !!selectedStyle :
+    customText.trim() || top.trim() || bottom.trim() || hair.trim()
+  )
+
+  function cancelGeneration() {
+    cancelRef.current = true
+    clearWardrobePending(influencer.id)
+    setGenerating(false); setProgress(0)
+  }
+
+  async function generate() {
+    if (!canGenerate) return
+    cancelRef.current = false
+    setGenerating(true); setProgress(0); setError(null)
+    try {
+      const preset = styles.find(s => s.id === selectedStyle)
+      const outfitText = preset ? preset.outfit : [top, bottom].filter(Boolean).join(', ')
+      const hairText = hair || (preset ? preset.hair : '')
+      const label = preset?.label || (mode === 'custom' ? 'Custom Look' : [top, bottom].filter(Boolean).join(' / ') || 'New Look')
+      const prompt = buildWardrobePrompt(influencer, {
+        outfit: outfitText, hair: hairText,
+        customText: mode === 'custom' ? customText : null,
+      })
+      const url = await generateSingleImage({
+        prompt, aspectRatio: '16:9', referenceImage: refImage, onProgress: setProgress,
+        onJobIds: jobIds => saveWardrobePending(influencer.id, { jobIds, label }),
+        isCancelled: () => cancelRef.current,
+      })
+      clearWardrobePending(influencer.id)
+      if (!cancelRef.current && url) { setResult({ url, name: label }); setSaveName(label) }
+    } catch (e) {
+      clearWardrobePending(influencer.id)
+      if (!cancelRef.current && e.message !== 'CANCELLED') setError(e.message)
+    } finally {
+      if (!cancelRef.current) { setGenerating(false); setProgress(0) }
+    }
+  }
+
+  function saveToWardrobe() {
+    if (!result) return
+    onAdd({ id: generateId(), name: saveName.trim() || result.name, image: result.url })
+    setResult(null); setSaveName(''); setSelectedStyle(null); setTop(''); setBottom(''); setHair(''); setCustomText('')
+  }
+
+  function discardResult() {
+    setResult(null); setSaveName('')
+  }
+
+  const iS = { padding: '9px 12px', borderRadius: 8, fontSize: 13, border: '1.5px solid var(--border)', background: 'var(--bg)', color: 'var(--text-primary)', outline: 'none', width: '100%', boxSizing: 'border-box', fontFamily: 'inherit' }
+  const lS = { fontSize: 11, fontWeight: 600, color: 'var(--text-tertiary)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 6 }
+
+  return (
+    <div style={{ background: 'var(--surface)', borderRadius: 16, border: '1px solid var(--border-subtle)', padding: 20, marginBottom: 20 }}>
+
+      {/* Header */}
+      <div style={{ marginBottom: 16 }}>
+        <div style={{ fontSize: 15, fontWeight: 700 }}>Generate Look</div>
+        <div style={{ fontSize: 12, color: 'var(--text-tertiary)', marginTop: 2 }}>Uses character sheet as identity lock · 16:9 · 4K</div>
+      </div>
+
+      {/* Result preview */}
+      {result && (<>
+        {lightboxOpen && (
+          <Lightbox images={[result.url]} startIndex={0} onClose={() => setLightboxOpen(false)} />
+        )}
+        <div
+          onClick={() => setLightboxOpen(true)}
+          style={{ position: 'relative', cursor: 'zoom-in', marginBottom: 14, borderRadius: 10, overflow: 'hidden', border: '1px solid var(--border-subtle)' }}
+          onMouseEnter={e => { e.currentTarget.querySelector('img').style.transform = 'scale(1.03)' }}
+          onMouseLeave={e => { e.currentTarget.querySelector('img').style.transform = 'scale(1)' }}
+        >
+          <img src={result.url} alt="" style={{ width: '100%', display: 'block', aspectRatio: '16/9', objectFit: 'cover', transition: 'transform 0.3s ease' }} />
+          <button
+            onClick={e => { e.stopPropagation(); downloadImage(result.url, `${(result.name || 'look').replace(/\s+/g, '-')}.jpg`) }}
+            style={{
+              position: 'absolute', bottom: 10, right: 10,
+              padding: '5px 12px', borderRadius: 980, fontSize: 12, fontWeight: 600,
+              background: 'rgba(0,0,0,0.55)', color: '#fff',
+              backdropFilter: 'blur(6px)', WebkitBackdropFilter: 'blur(6px)',
+              border: '1px solid rgba(255,255,255,0.15)',
+            }}
+          >↓ Download</button>
+        </div>
+        <div style={{ fontSize: 13, fontWeight: 600, marginBottom: 10 }}>Ready to save</div>
+        <div style={lS}>Name this look</div>
+        <input value={saveName} onChange={e => setSaveName(e.target.value)} style={{ ...iS, marginBottom: 12 }} />
+        <div style={{ display: 'flex', gap: 8 }}>
+          <button onClick={saveToWardrobe} style={{
+            flex: 1, padding: '10px', borderRadius: 9, fontSize: 13, fontWeight: 700,
+            background: 'linear-gradient(135deg,#EC4899,#8B5CF6)', color: '#fff',
+            boxShadow: '0 2px 10px rgba(139,92,246,0.3)',
+          }}>Save to Wardrobe</button>
+          <button onClick={discardResult} style={{
+            padding: '10px 14px', borderRadius: 9, fontSize: 13, fontWeight: 600,
+            background: 'var(--bg-tertiary)', color: 'var(--text-secondary)',
+          }}>Discard</button>
+        </div>
+      </>)}
+
+      {/* Generating state */}
+      {generating && !result && (
+        <div>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 }}>
+            <span style={{ fontSize: 13, fontWeight: 600, color: 'var(--text-primary)' }}>Generating look…</span>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+              <span style={{ fontSize: 12, color: 'var(--text-tertiary)', fontVariantNumeric: 'tabular-nums' }}>
+                {progress > 0 ? `${Math.round(progress)}%` : 'Starting…'}
+              </span>
+              <button onClick={cancelGeneration} style={{
+                padding: '3px 10px', borderRadius: 980, fontSize: 11, fontWeight: 600,
+                background: 'var(--bg-tertiary)', color: 'var(--text-tertiary)',
+                border: '1px solid var(--border)',
+              }}>Cancel</button>
+            </div>
+          </div>
+          <div style={{ height: 6, borderRadius: 980, background: 'var(--bg-tertiary)', overflow: 'hidden' }}>
+            <div style={{
+              height: '100%',
+              width: `${Math.max(3, progress)}%`,
+              background: 'linear-gradient(90deg,#EC4899,#8B5CF6)',
+              borderRadius: 980,
+              transition: 'width 0.5s ease',
+              boxShadow: '0 0 10px rgba(139,92,246,0.5)',
+            }}/>
+          </div>
+        </div>
+      )}
+
+      {/* Form */}
+      {!result && !generating && (<>
+
+        {/* Prominent mode toggle */}
+        <div style={{ display: 'flex', gap: 0, background: 'var(--bg-tertiary)', borderRadius: 10, padding: 3, marginBottom: 18 }}>
+          {[['preset','Style Presets'],['custom','Custom Look']].map(([m,label]) => (
+            <button key={m} onClick={() => setMode(m)} style={{
+              flex: 1, padding: '9px', borderRadius: 8, fontSize: 13, fontWeight: 600,
+              background: mode === m ? 'var(--surface)' : 'transparent',
+              color: mode === m ? 'var(--text-primary)' : 'var(--text-tertiary)',
+              boxShadow: mode === m ? '0 1px 6px rgba(0,0,0,0.10)' : 'none',
+              transition: 'all 0.15s',
+            }}>{label}</button>
+          ))}
+        </div>
+
+        {mode === 'preset' && (<>
+          <div style={{ display: 'flex', gap: 7, flexWrap: 'wrap', marginBottom: 16 }}>
+            {styles.map(s => (
+              <button key={s.id} onClick={() => pickStyle(s)} style={{
+                padding: '7px 14px', borderRadius: 980, fontSize: 13, fontWeight: 500,
+                background: selectedStyle === s.id ? 'linear-gradient(135deg,#EC4899,#8B5CF6)' : 'var(--bg-tertiary)',
+                color: selectedStyle === s.id ? '#fff' : 'var(--text-secondary)',
+                boxShadow: selectedStyle === s.id ? '0 2px 10px rgba(139,92,246,0.28)' : 'none',
+                transition: 'all 0.15s', display: 'flex', alignItems: 'center', gap: 5,
+              }}><span>{s.icon}</span>{s.label}</button>
+            ))}
+          </div>
+          <div>
+            <div style={lS}>Hairstyle override</div>
+            <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+              {hairPresets.map(h => (
+                <button key={h} onClick={() => setHair(hair === h ? '' : h)} style={{
+                  padding: '5px 11px', borderRadius: 980, fontSize: 12, fontWeight: 500,
+                  background: hair === h ? 'rgba(139,92,246,0.10)' : 'var(--bg-tertiary)',
+                  color: hair === h ? '#8B5CF6' : 'var(--text-secondary)',
+                  border: `1px solid ${hair === h ? 'rgba(139,92,246,0.4)' : 'transparent'}`,
+                  transition: 'all 0.15s',
+                }}>{h}</button>
+              ))}
+            </div>
+          </div>
+        </>)}
+
+        {mode === 'custom' && (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
+              <div>
+                <div style={lS}>Top</div>
+                <input value={top} onChange={e => setTop(e.target.value)} placeholder={influencer.gender === 'Male' ? 'e.g. white oxford shirt' : 'e.g. white crop top'} style={iS} />
+              </div>
+              <div>
+                <div style={lS}>Bottom</div>
+                <input value={bottom} onChange={e => setBottom(e.target.value)} placeholder={influencer.gender === 'Male' ? 'e.g. dark chinos' : 'e.g. baggy jeans'} style={iS} />
+              </div>
+            </div>
+            <div>
+              <div style={lS}>Hairstyle</div>
+              <input value={hair} onChange={e => setHair(e.target.value)} placeholder={influencer.gender === 'Male' ? 'e.g. slicked back, low fade' : 'e.g. sleek low bun'} style={iS} />
+            </div>
+            <div>
+              <div style={lS}>Or describe the full look</div>
+              <textarea value={customText} onChange={e => setCustomText(e.target.value)} placeholder="e.g. vintage leather jacket over a white tee, dark slim jeans, white sneakers, hair pushed back naturally" rows={3} style={{ ...iS, resize: 'vertical' }} />
+            </div>
+          </div>
+        )}
+
+        {!refImage && (
+          <div style={{ fontSize: 12, color: 'var(--text-tertiary)', marginTop: 14, padding: '9px 12px', background: 'var(--bg-tertiary)', borderRadius: 8 }}>
+            No character sheet — generate one in the Overview tab first.
+          </div>
+        )}
+        {error && <div style={{ fontSize: 12, color: '#FF3B30', marginTop: 10 }}>{error}</div>}
+
+        <button onClick={generate} disabled={!canGenerate} style={{
+          width: '100%', marginTop: 16, padding: '12px', borderRadius: 10, fontSize: 14, fontWeight: 700,
+          background: canGenerate ? 'linear-gradient(135deg,#EC4899,#8B5CF6)' : 'var(--bg-tertiary)',
+          color: canGenerate ? '#fff' : 'var(--text-tertiary)',
+          cursor: canGenerate ? 'pointer' : 'not-allowed',
+          boxShadow: canGenerate ? '0 2px 12px rgba(139,92,246,0.32)' : 'none',
+          transition: 'all 0.15s',
+        }}>Generate Look</button>
+      </>)}
+    </div>
+  )
+}
+
+// ─────────────────────────────────────────────
 // World Drops
-function WorldDropCard({ drop, editing, editName, onEditName, onStartEdit, onCommitEdit, onCancelEdit, onImageChange, onDelete }) {
+function WorldDropCard({ drop, editing, editName, onEditName, onStartEdit, onCommitEdit, onCancelEdit, onImageChange, onDelete, onLightbox }) {
   const fileRef = useRef()
   const [hovered, setHovered] = useState(false)
+  const [dragOver, setDragOver] = useState(false)
+
+  function handleFile(f) {
+    if (!f || !f.type.startsWith('image/')) return
+    const r = new FileReader()
+    r.onload = ev => compressImage(ev.target.result).then(onImageChange).catch(console.error)
+    r.readAsDataURL(f)
+  }
+
   return (
     <div
-      style={{ background:'var(--bg)', borderRadius:12, border:`1.5px solid ${hovered?'var(--accent)':'var(--border)'}`, overflow:'hidden', boxShadow:hovered?'var(--shadow-md)':'none', transition:'border-color 0.15s, box-shadow 0.15s' }}
+      style={{ background:'var(--bg)', borderRadius:12, border:`1.5px solid ${dragOver?'#8B5CF6':hovered?'var(--accent)':'var(--border)'}`, overflow:'hidden', boxShadow:hovered?'var(--shadow-md)':'none', transition:'border-color 0.15s, box-shadow 0.15s' }}
       onMouseEnter={()=>setHovered(true)}
       onMouseLeave={()=>setHovered(false)}
     >
       {/* Image slot */}
       <div
-        style={{ aspectRatio:'4/3', background:'var(--bg-tertiary)', overflow:'hidden', cursor:'pointer', position:'relative' }}
-        onClick={()=>fileRef.current.click()}
+        style={{ aspectRatio:'4/3', background: dragOver ? 'rgba(139,92,246,0.07)' : 'var(--bg-tertiary)', overflow:'hidden', cursor:'pointer', position:'relative', transition:'background 0.15s' }}
+        onClick={() => drop.image ? onLightbox?.() : fileRef.current.click()}
+        onDragOver={e=>{e.preventDefault();setDragOver(true)}}
+        onDragLeave={()=>setDragOver(false)}
+        onDrop={e=>{e.preventDefault();setDragOver(false);handleFile(e.dataTransfer.files[0])}}
       >
         {drop.image
           ? <>
@@ -1279,17 +1828,12 @@ function WorldDropCard({ drop, editing, editName, onEditName, onStartEdit, onCom
               </div>
             </>
           : <div style={{ width:'100%', height:'100%', display:'flex', flexDirection:'column', alignItems:'center', justifyContent:'center', gap:6 }}>
-              <span style={{ fontSize:22, opacity:0.22 }}>+</span>
-              <span style={{ fontSize:11, color:'var(--text-tertiary)', fontWeight:500 }}>Upload image</span>
+              <span style={{ fontSize:22, opacity: dragOver ? 0.6 : 0.22 }}>+</span>
+              <span style={{ fontSize:11, color:'var(--text-tertiary)', fontWeight:500 }}>{dragOver ? 'Drop to upload' : 'Upload or drag & drop'}</span>
             </div>
         }
         <input ref={fileRef} type="file" accept="image/*" style={{ display:'none' }}
-          onChange={e=>{
-            const f=e.target.files[0]; if(!f) return
-            const r=new FileReader()
-            r.onload=ev=>compressImage(ev.target.result).then(onImageChange).catch(console.error)
-            r.readAsDataURL(f); e.target.value=''
-          }}/>
+          onChange={e=>{handleFile(e.target.files[0]);e.target.value=''}}/>
       </div>
 
       {/* Name + hover-reveal actions */}
@@ -1316,7 +1860,7 @@ function WorldDropCard({ drop, editing, editName, onEditName, onStartEdit, onCom
           }}>✎</button>
           <button onClick={e=>{e.stopPropagation();onDelete()}} title="Delete" style={{
             width:26, height:26, borderRadius:7, border:'none', cursor:'pointer',
-            background:'#FFF5F5', color:'#FF3B30',
+            background:'rgba(255,59,48,0.08)', color:'#FF3B30',
             display:'flex', alignItems:'center', justifyContent:'center', fontSize:15, lineHeight:1,
           }}>×</button>
         </div>
@@ -1328,6 +1872,7 @@ function WorldDropCard({ drop, editing, editName, onEditName, onStartEdit, onCom
 function WorldDropSection({ drops=[], onChange }) {
   const [editId,setEditId]=useState(null)
   const [editName,setEditName]=useState('')
+  const [lightboxUrl,setLightboxUrl]=useState(null)
 
   function addDrop() {
     onChange([...drops, { id:generateId(), name:`Wardrobe ${drops.length+1}`, image:null }])
@@ -1338,6 +1883,7 @@ function WorldDropSection({ drops=[], onChange }) {
 
   return (
     <div>
+      {lightboxUrl&&<Lightbox images={[lightboxUrl]} startIndex={0} onClose={()=>setLightboxUrl(null)}/>}
       {drops.length===0&&(
         <div style={{ textAlign:'center', padding:'52px 0', color:'var(--text-tertiary)' }}>
           <div style={{ fontSize:36, marginBottom:10, opacity:.2 }}>👗</div>
@@ -1357,6 +1903,7 @@ function WorldDropSection({ drops=[], onChange }) {
               onCancelEdit={()=>{setEditId(null);setEditName('')}}
               onImageChange={img=>updateDrop(drop.id,{image:img})}
               onDelete={()=>deleteDrop(drop.id)}
+              onLightbox={()=>setLightboxUrl(drop.image)}
             />
           ))}
         </div>
@@ -1372,6 +1919,278 @@ function WorldDropSection({ drops=[], onChange }) {
         onMouseEnter={e=>{e.currentTarget.style.borderColor='var(--accent)';e.currentTarget.style.color='var(--accent)'}}
         onMouseLeave={e=>{e.currentTarget.style.borderColor='var(--border)';e.currentTarget.style.color='var(--text-secondary)'}}
       >+ Add Wardrobe</button>
+    </div>
+  )
+}
+
+// ─────────────────────────────────────────────
+// Home section — same WorldDropCard design for home/room photos
+function HomeSection({ slots=[], onChange }) {
+  const [editId,setEditId]=useState(null)
+  const [editName,setEditName]=useState('')
+
+  function addSlot() { onChange([...slots,{id:generateId(),name:`Room ${slots.length+1}`,image:null}]) }
+  function updateSlot(id,updates){ onChange(slots.map(s=>s.id===id?{...s,...updates}:s)) }
+  function deleteSlot(id){ onChange(slots.filter(s=>s.id!==id)) }
+  function commitRename(){ if(editName.trim()) updateSlot(editId,{name:editName.trim()}); setEditId(null); setEditName('') }
+
+  return (
+    <div>
+      {slots.length===0&&(
+        <div style={{textAlign:'center',padding:'52px 0',color:'var(--text-tertiary)'}}>
+          <div style={{fontSize:36,marginBottom:10,opacity:.2}}>🏠</div>
+          <div style={{fontSize:14,fontWeight:600,color:'var(--text-secondary)',marginBottom:6}}>No home photos yet</div>
+          <div style={{fontSize:13}}>Add room and home photos for your influencer.</div>
+        </div>
+      )}
+      {slots.length>0&&(
+        <div style={{display:'grid',gridTemplateColumns:'repeat(auto-fill, minmax(200px, 1fr))',gap:14,marginBottom:16}}>
+          {slots.map(slot=>(
+            <WorldDropCard
+              key={slot.id} drop={slot}
+              editing={editId===slot.id} editName={editName}
+              onEditName={setEditName}
+              onStartEdit={()=>{setEditId(slot.id);setEditName(slot.name)}}
+              onCommitEdit={commitRename}
+              onCancelEdit={()=>{setEditId(null);setEditName('')}}
+              onImageChange={img=>updateSlot(slot.id,{image:img})}
+              onDelete={()=>deleteSlot(slot.id)}
+            />
+          ))}
+        </div>
+      )}
+      <button onClick={addSlot} style={{
+        display:'flex',alignItems:'center',gap:6,
+        padding:'8px 16px',borderRadius:8,
+        border:'1.5px dashed var(--border)',
+        background:'transparent',color:'var(--text-secondary)',
+        fontSize:13,fontWeight:500,cursor:'pointer',
+        transition:'border-color 0.15s, color 0.15s',
+      }}
+        onMouseEnter={e=>{e.currentTarget.style.borderColor='var(--accent)';e.currentTarget.style.color='var(--accent)'}}
+        onMouseLeave={e=>{e.currentTarget.style.borderColor='var(--border)';e.currentTarget.style.color='var(--text-secondary)'}}
+      >+ Add Room</button>
+    </div>
+  )
+}
+
+// ─────────────────────────────────────────────
+// Brand deal card — WorldDropCard style with brand + category fields
+function BrandDealCard({ deal, editingBrand, editBrand, onEditBrand, onStartEdit, onCommitEdit, onCancelEdit, onImageChange, onDelete, onCategoryChange }) {
+  const fileRef = useRef()
+  const [hovered,setHovered]=useState(false)
+  const [dragOver,setDragOver]=useState(false)
+
+  function handleFile(f) {
+    if (!f || !f.type.startsWith('image/')) return
+    const r = new FileReader()
+    r.onload = ev => compressImage(ev.target.result).then(onImageChange).catch(console.error)
+    r.readAsDataURL(f)
+  }
+
+  return (
+    <div
+      style={{background:'var(--bg)',borderRadius:12,border:`1.5px solid ${dragOver?'#8B5CF6':hovered?'var(--accent)':'var(--border)'}`,overflow:'hidden',boxShadow:hovered?'var(--shadow-md)':'none',transition:'border-color 0.15s, box-shadow 0.15s'}}
+      onMouseEnter={()=>setHovered(true)}
+      onMouseLeave={()=>setHovered(false)}
+    >
+      {/* Image slot */}
+      <div
+        style={{aspectRatio:'4/3',background:dragOver?'rgba(139,92,246,0.07)':'var(--bg-tertiary)',overflow:'hidden',cursor:'pointer',position:'relative',transition:'background 0.15s'}}
+        onClick={()=>fileRef.current.click()}
+        onDragOver={e=>{e.preventDefault();setDragOver(true)}}
+        onDragLeave={()=>setDragOver(false)}
+        onDrop={e=>{e.preventDefault();setDragOver(false);handleFile(e.dataTransfer.files[0])}}
+      >
+        {deal.image
+          ? <>
+              <img src={deal.image} alt="" style={{width:'100%',height:'100%',objectFit:'cover',display:'block'}}/>
+              <div style={{position:'absolute',inset:0,background:'rgba(0,0,0,0)',transition:'background 0.15s'}}
+                onMouseEnter={e=>{e.currentTarget.style.background='rgba(0,0,0,0.2)'}}
+                onMouseLeave={e=>{e.currentTarget.style.background='rgba(0,0,0,0)'}}
+              >
+                <button onClick={e=>{e.stopPropagation();onImageChange(null)}} style={{
+                  position:'absolute',top:6,right:6,width:22,height:22,borderRadius:'50%',
+                  background:'rgba(0,0,0,0.55)',color:'#fff',fontSize:13,
+                  display:'flex',alignItems:'center',justifyContent:'center',
+                  backdropFilter:'blur(4px)',border:'1px solid rgba(255,255,255,0.15)',
+                }}>×</button>
+              </div>
+            </>
+          : <div style={{width:'100%',height:'100%',display:'flex',flexDirection:'column',alignItems:'center',justifyContent:'center',gap:6}}>
+              <span style={{fontSize:22,opacity:dragOver?0.6:0.22}}>+</span>
+              <span style={{fontSize:11,color:'var(--text-tertiary)',fontWeight:500}}>{dragOver?'Drop to upload':'Upload or drag & drop'}</span>
+            </div>
+        }
+        <input ref={fileRef} type="file" accept="image/*" style={{display:'none'}}
+          onChange={e=>{handleFile(e.target.files[0]);e.target.value=''}}/>
+      </div>
+
+      {/* Brand + category + actions */}
+      <div style={{padding:'10px 12px'}}>
+        <div style={{display:'flex',alignItems:'center',gap:6,marginBottom:4}}>
+          {editingBrand
+            ? <input autoFocus value={editBrand} onChange={e=>onEditBrand(e.target.value)}
+                onBlur={onCommitEdit}
+                onKeyDown={e=>{if(e.key==='Enter')onCommitEdit();if(e.key==='Escape')onCancelEdit()}}
+                style={{flex:1,fontSize:13,fontWeight:700,border:'none',background:'transparent',color:'var(--text-primary)',outline:'none'}}/>
+            : <span style={{flex:1,fontSize:13,fontWeight:700,color:'var(--text-primary)',overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{deal.brand}</span>
+          }
+          <div style={{display:'flex',gap:3,flexShrink:0,opacity:hovered?1:0,transition:'opacity 0.15s'}}>
+            <button onClick={e=>{e.stopPropagation();onStartEdit()}} title="Rename" style={{
+              width:26,height:26,borderRadius:7,border:'none',cursor:'pointer',
+              background:'var(--bg-tertiary)',color:'var(--text-secondary)',
+              display:'flex',alignItems:'center',justifyContent:'center',fontSize:13,
+            }}>✎</button>
+            <button onClick={e=>{e.stopPropagation();onDelete()}} title="Delete" style={{
+              width:26,height:26,borderRadius:7,border:'none',cursor:'pointer',
+              background:'rgba(255,59,48,0.08)',color:'#FF3B30',
+              display:'flex',alignItems:'center',justifyContent:'center',fontSize:15,lineHeight:1,
+            }}>×</button>
+          </div>
+        </div>
+        <input
+          value={deal.category||''}
+          onChange={e=>onCategoryChange(e.target.value)}
+          onClick={e=>e.stopPropagation()}
+          placeholder="Category (e.g. Beauty, Tech…)"
+          style={{width:'100%',fontSize:11,color:'var(--text-tertiary)',border:'none',background:'transparent',outline:'none',boxSizing:'border-box'}}
+        />
+      </div>
+    </div>
+  )
+}
+
+function NewBrandModal({ onClose, onSave }) {
+  const [brand, setBrand] = useState('')
+  const [category, setCategory] = useState('')
+  const [image, setImage] = useState(null)
+  const [dragging, setDragging] = useState(false)
+  const fileRef = useRef()
+
+  function handleFile(f) {
+    if (!f || !f.type.startsWith('image/')) return
+    const r = new FileReader()
+    r.onload = ev => compressImage(ev.target.result).then(setImage)
+    r.readAsDataURL(f)
+  }
+
+  return (
+    <div onClick={onClose} style={{position:'fixed',inset:0,background:'rgba(0,0,0,0.4)',backdropFilter:'blur(6px)',display:'flex',alignItems:'center',justifyContent:'center',zIndex:300}}>
+      <div onClick={e=>e.stopPropagation()} style={{background:'var(--surface)',borderRadius:20,padding:28,width:380,maxWidth:'90vw',boxShadow:'var(--shadow-lg)'}}>
+        <div style={{fontSize:18,fontWeight:700,letterSpacing:'-0.4px',marginBottom:20}}>New Brand Deal</div>
+
+        <label style={{display:'block',marginBottom:14}}>
+          <div style={{fontSize:11,fontWeight:700,color:'var(--text-secondary)',textTransform:'uppercase',letterSpacing:'0.5px',marginBottom:6}}>Brand Name</div>
+          <input autoFocus value={brand} onChange={e=>setBrand(e.target.value)}
+            onKeyDown={e=>{if(e.key==='Enter'&&brand.trim())onSave({brand,category,image})}}
+            placeholder="e.g. Nike"
+            style={{width:'100%',padding:'10px 14px',borderRadius:8,border:'1.5px solid var(--border)',background:'var(--bg)',fontSize:14,color:'var(--text-primary)',boxSizing:'border-box'}}/>
+        </label>
+
+        <label style={{display:'block',marginBottom:18}}>
+          <div style={{fontSize:11,fontWeight:700,color:'var(--text-secondary)',textTransform:'uppercase',letterSpacing:'0.5px',marginBottom:6}}>Category</div>
+          <input value={category} onChange={e=>setCategory(e.target.value)}
+            placeholder="e.g. Fitness, Beauty, Tech…"
+            style={{width:'100%',padding:'10px 14px',borderRadius:8,border:'1.5px solid var(--border)',background:'var(--bg)',fontSize:14,color:'var(--text-primary)',boxSizing:'border-box'}}/>
+        </label>
+
+        <div style={{marginBottom:22}}>
+          <div style={{fontSize:11,fontWeight:700,color:'var(--text-secondary)',textTransform:'uppercase',letterSpacing:'0.5px',marginBottom:8}}>Brand Image</div>
+          <div
+            onClick={()=>fileRef.current.click()}
+            onDragOver={e=>{e.preventDefault();setDragging(true)}}
+            onDragLeave={()=>setDragging(false)}
+            onDrop={e=>{e.preventDefault();setDragging(false);handleFile(e.dataTransfer.files[0])}}
+            style={{
+              width:'100%',aspectRatio:'16/9',borderRadius:10,overflow:'hidden',cursor:'pointer',
+              border:image?'none':`1.5px dashed ${dragging?'#8B5CF6':'var(--border)'}`,
+              background:image?'transparent':dragging?'rgba(139,92,246,0.07)':'var(--bg-tertiary)',
+              display:'flex',alignItems:'center',justifyContent:'center',flexDirection:'column',gap:6,
+              transition:'border-color 0.15s, background 0.15s',
+            }}
+          >
+            {image
+              ? <img src={image} alt="" style={{width:'100%',height:'100%',objectFit:'cover'}}/>
+              : <>
+                  <span style={{fontSize:22,opacity:dragging?0.6:0.25}}>+</span>
+                  <span style={{fontSize:12,color:'var(--text-tertiary)'}}>{dragging?'Drop to upload':'Upload or drag & drop'}</span>
+                </>
+            }
+          </div>
+          <input ref={fileRef} type="file" accept="image/*" style={{display:'none'}} onChange={e=>{handleFile(e.target.files[0]);e.target.value=''}}/>
+        </div>
+
+        <div style={{display:'flex',gap:10}}>
+          <button onClick={onClose} style={{flex:1,padding:'10px',borderRadius:10,border:'1.5px solid var(--border)',fontSize:14,fontWeight:500,color:'var(--text-secondary)',background:'transparent'}}>Cancel</button>
+          <button
+            disabled={!brand.trim()}
+            onClick={()=>onSave({brand,category,image})}
+            style={{
+              flex:2,padding:'10px',borderRadius:10,fontSize:14,fontWeight:700,
+              background:brand.trim()?'linear-gradient(135deg,#EC4899,#8B5CF6)':'var(--border)',
+              color:brand.trim()?'#fff':'var(--text-tertiary)',
+              boxShadow:brand.trim()?'0 2px 12px rgba(139,92,246,0.3)':'none',
+              transition:'all 0.15s',
+            }}
+          >Add Brand</button>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+function BrandDealSection({ deals=[], onChange }) {
+  const [showModal, setShowModal] = useState(false)
+  const [editId,setEditId]=useState(null)
+  const [editBrand,setEditBrand]=useState('')
+
+  function addDeal({brand,category,image}) {
+    onChange([...deals,{id:generateId(),brand,category,image}])
+    setShowModal(false)
+  }
+  function updateDeal(id,updates){ onChange(deals.map(d=>d.id===id?{...d,...updates}:d)) }
+  function deleteDeal(id){ onChange(deals.filter(d=>d.id!==id)) }
+  function commitRename(){ if(editBrand.trim()) updateDeal(editId,{brand:editBrand.trim()}); setEditId(null); setEditBrand('') }
+
+  return (
+    <div>
+      {showModal && <NewBrandModal onClose={()=>setShowModal(false)} onSave={addDeal}/>}
+      {deals.length===0&&(
+        <div style={{textAlign:'center',padding:'52px 0',color:'var(--text-tertiary)'}}>
+          <div style={{fontSize:36,marginBottom:10,opacity:.2}}>🤝</div>
+          <div style={{fontSize:14,fontWeight:600,color:'var(--text-secondary)',marginBottom:6}}>No brand deals yet</div>
+          <div style={{fontSize:13}}>Add brands you want this influencer to promote.</div>
+        </div>
+      )}
+      {deals.length>0&&(
+        <div style={{display:'grid',gridTemplateColumns:'repeat(auto-fill, minmax(200px, 1fr))',gap:14,marginBottom:16}}>
+          {deals.map(deal=>(
+            <BrandDealCard
+              key={deal.id} deal={deal}
+              editingBrand={editId===deal.id} editBrand={editBrand}
+              onEditBrand={setEditBrand}
+              onStartEdit={()=>{setEditId(deal.id);setEditBrand(deal.brand)}}
+              onCommitEdit={commitRename}
+              onCancelEdit={()=>{setEditId(null);setEditBrand('')}}
+              onImageChange={img=>updateDeal(deal.id,{image:img})}
+              onDelete={()=>deleteDeal(deal.id)}
+              onCategoryChange={cat=>updateDeal(deal.id,{category:cat})}
+            />
+          ))}
+        </div>
+      )}
+      <button onClick={()=>setShowModal(true)} style={{
+        display:'flex',alignItems:'center',gap:6,
+        padding:'8px 16px',borderRadius:8,
+        border:'1.5px dashed var(--border)',
+        background:'transparent',color:'var(--text-secondary)',
+        fontSize:13,fontWeight:500,cursor:'pointer',
+        transition:'border-color 0.15s, color 0.15s',
+      }}
+        onMouseEnter={e=>{e.currentTarget.style.borderColor='var(--accent)';e.currentTarget.style.color='var(--accent)'}}
+        onMouseLeave={e=>{e.currentTarget.style.borderColor='var(--border)';e.currentTarget.style.color='var(--text-secondary)'}}
+      >+ Add Brand</button>
     </div>
   )
 }
@@ -1431,17 +2250,24 @@ function Tabs({ active, onChange, ac }) {
 // ─────────────────────────────────────────────
 // Content Studio helpers
 const CS_ENVIRONMENTS = [
-  'Bedroom','Bathroom','Kitchen','Coffee Shop','Mall / Store','Street','Gym','Studio',
+  { key: 'Bedroom',     label: 'In a bedroom' },
+  { key: 'Bathroom',    label: 'In a bathroom' },
+  { key: 'Kitchen',     label: 'In the kitchen' },
+  { key: 'Coffee Shop', label: 'Coffee shop' },
+  { key: 'Mall / Store',label: 'At the mall' },
+  { key: 'Street',      label: 'On the street' },
+  { key: 'Gym',         label: 'At the gym' },
+  { key: 'Studio',      label: 'In a studio' },
 ]
 const CS_ENV_PRESETS = {
-  'Bedroom':    'Minimal bedroom interior, morning light through window, soft bedding visible. Soft diffused daylight ~5500K wrapping the near cheek.',
-  'Bathroom':   'Clean modern bathroom, mirror in background, vanity countertop visible. Overhead light ~4000K with daylight fill from the side.',
-  'Kitchen':    'Bright modern kitchen, clean counter in foreground, natural window light from the side. Natural window light ~5500K, clean and even.',
-  'Coffee Shop':'Cozy coffee shop interior, warm ambient tones, soft blurred background. Warm ambient ~3000K, natural window fill from one side.',
-  'Mall / Store':'Modern retail interior, product shelving in background, bright overhead lighting. Commercial overhead ~4500K, bright and even.',
-  'Street':     'City street exterior, golden hour light, soft urban background. Golden hour ~3500K from behind, rim-lighting hair.',
-  'Gym':        'Modern gym interior, equipment visible in background, high-energy overhead lighting. Overhead gym lighting ~4500K, high contrast.',
-  'Studio':     'Clean minimal studio, controlled neutral background, no distractions. Soft box key ~5600K from camera-left, fill from camera-right.',
+  'Bedroom':     'in the bedroom',
+  'Bathroom':    'in the bathroom',
+  'Kitchen':     'in the kitchen',
+  'Coffee Shop': 'in a coffee shop',
+  'Mall / Store':'in a mall or store',
+  'Street':      'on the street outside',
+  'Gym':         'in the gym',
+  'Studio':      'in a studio',
 }
 const CS_CAMERAS = [
   'Handheld','Tripod','Talking Head',
@@ -1556,15 +2382,17 @@ function CSChips({ options, value, onChange }) {
   return (
     <div style={{display:'flex',flexWrap:'wrap',gap:7}}>
       {options.map(o=>{
-        const on = value === o
+        const key = typeof o === 'object' ? o.key : o
+        const label = typeof o === 'object' ? o.label : o
+        const on = value === key
         return (
-          <button key={o} onClick={()=>onChange(on ? '' : o)} style={{
+          <button key={key} onClick={()=>onChange(on ? '' : key)} style={{
             padding:'7px 14px',borderRadius:980,fontSize:12,fontWeight:600,
             background: on ? 'linear-gradient(135deg,rgba(236,72,153,0.15),rgba(139,92,246,0.15))' : 'var(--bg-tertiary)',
             color: on ? '#8B5CF6' : 'var(--text-secondary)',
             border: on ? '1.5px solid rgba(139,92,246,0.4)' : '1.5px solid transparent',
             transition:'all 0.15s',
-          }}>{o}</button>
+          }}>{label}</button>
         )
       })}
     </div>
@@ -1768,24 +2596,11 @@ function annotateDialogue(rawText, productTag, durationSecs, isHandheld = false,
       return
     }
 
-    // Pivot + ellipsis (reveal moment): "but this thing actually... [pause] oh wow"
+    // Pivot + ellipsis
     if (hasPivot && hasEllipsis) {
-      const [before, after] = s.split(/\.\.\./)
-      const eyeExpr = useMicro(' eyes widen slightly.')
-      wornGestureCounter++ // keep counter in sync — this path has its own product beat
+      wornGestureCounter++
       if (prod) out.push(wearMode ? `She touches ${prod} and angles so it's clearly visible to camera.` : `She tilts ${prod} toward camera.`)
-      else out.push(`She leans in slightly.`)
-      out.push(`"${before.trim()}..."`)
-      out.push(`[micro-pause${eyeExpr ? ` —${eyeExpr}` : '.'}]`)
-      const afterTrimmed = after?.trim()
-      if (afterTrimmed) {
-        if (/[!]$/.test(afterTrimmed)) {
-          const holdExpr = useMicro('[holds the moment — genuine reaction, not performed.] ')
-          out.push(`She says under her breath, "${afterTrimmed}" ${holdExpr}Light exhale.`)
-        } else {
-          out.push(`"${afterTrimmed}" [beat.]`)
-        }
-      }
+      out.push(endsExclaim ? `"${s}" Energy up — genuine.` : `"${s}" [beat.]`)
       return
     }
 
@@ -1805,7 +2620,7 @@ function annotateDialogue(rawText, productTag, durationSecs, isHandheld = false,
       out.push(`"${before.trim()}..."`)
       out.push(`[micro-pause.]`)
       const afterTrimmed = after?.trim()
-      if (afterTrimmed) out.push(`"${afterTrimmed}" [beat.]`)
+      if (afterTrimmed) out.push(/[!]$/.test(afterTrimmed) ? `"${afterTrimmed}" Energy up — genuine.` : `"${afterTrimmed}" [beat.]`)
       return
     }
 
@@ -1825,12 +2640,11 @@ function annotateDialogue(rawText, productTag, durationSecs, isHandheld = false,
       return
     }
 
-    // Exclamation — genuine reaction, not performed
+    // Exclamation — energy up, genuine
     if (endsExclaim) {
-      const m = useMicro('[holds the moment — genuine reaction, not performed.] ')
       const g = maybeWornGesture()
       if (g) out.push(g)
-      out.push(`She says under her breath, "${s}" ${m}Light exhale.`)
+      out.push(`"${s}" Energy up — genuine, not performed.`)
       return
     }
 
@@ -1859,29 +2673,24 @@ function annotateDialogue(rawText, productTag, durationSecs, isHandheld = false,
     }
   }
 
+  // Conversation ends naturally — no [beat.] hanging after the last spoken word
+  if (out.length && out[out.length - 1].endsWith('[beat.]')) {
+    out[out.length - 1] = out[out.length - 1].slice(0, -7).trimEnd()
+  }
+
   return out.join(' ')
 }
 
-const SEEDANCE_TIPS = [
-  { label: 'Pro tip', text: 'Always end with "No music. No captions." — Seedance adds royalty-free music by default and it kills the vibe.' },
-  { label: 'Face fidelity', text: 'Wide shots spread resolution thin and faces go waxy. MCU minimum for any shot where the face needs to look real.' },
-  { label: 'Decisiveness', text: 'One specific choice always beats two options. "A walnut side table" — not "a table or a desk." Seedance renders decisions, not options.' },
-  { label: 'The hold', text: 'The pre-line breath and the held look after the line are what sell talking heads. The silence around the line is where the realism lives.' },
-  { label: 'Camera lock', text: 'Using "cinematic" + "locked tripod" = camera will still drift. Drop "cinematic," use "static" or "documentary" instead.' },
-  { label: 'Looping fix', text: 'If the same gesture keeps repeating, add "no looping gestures, hand movements evolve organically" to LOGIC RULE.' },
-  { label: 'The hook', text: 'First 2 seconds must work muted. Most people scroll with sound off — the hook has to stop the thumb before the audio kicks in.' },
-  { label: 'Skin detail', text: 'Add "visible pores, real eye moisture" to STYLE ANCHOR for face-priority shots. Without it the skin reads as plastic.' },
-  { label: 'Audio note', text: 'When uploading audio, strip DELIVERY to just "Lip-sync driven by @audio_1." Describing the audio character muffles the source file.' },
-  { label: 'Starting pose', text: 'Add "she is already seated at frame zero — no standing transition" to LOGIC RULE if the model keeps showing the sit-down.' },
-  { label: 'Identity lock', text: 'Always include in LOGIC RULE: "Face of @image_1 is fixed throughout — same bone structure, eye color, skin tone. Zero drift."' },
-  { label: 'Product lock', text: 'Lock product consistency: "@image_2 is always the same object — same color, label position, and size. Never substituted."' },
-]
+function fmtElapsed(e) {
+  if (e < 60) return `${e}s`
+  return `${Math.floor(e / 60)}:${String(e % 60).padStart(2, '0')}`
+}
 
 const VIDEO_MAX_WORDS = {4:14,5:17,6:21,7:24,8:28,9:32,10:35,11:38,12:42,13:45,14:48,15:52}
 
 // ─────────────────────────────────────────────
 // Content Studio
-function ContentStudio({ influencer, onUpdate }) {
+function ContentStudio({ influencer, onUpdate, onSaveToScripts }) {
   const allImages = [
     { key: 'mainImage',          label: 'Main',          url: influencer.mainImage },
     { key: 'characterSheetImage',label: 'Character Sheet',url: influencer.characterSheetImage },
@@ -1890,16 +2699,22 @@ function ContentStudio({ influencer, onUpdate }) {
     ...(influencer.wardrobeSlots||[]).filter(s=>s.image).map(s=>({ key: s.id, label: s.name, url: s.image })),
   ].filter(img=>img.url)
 
-  const [productRef1, setProductRef1] = useState(null)
-  const [productRef2, setProductRef2] = useState(null)
+  const [productRef1, setProductRef1] = useState(() => { try { return localStorage.getItem(`hf_product_ref_1_${influencer.id}`) || null } catch { return null } })
+  const [productRef2, setProductRef2] = useState(() => { try { return localStorage.getItem(`hf_product_ref_2_${influencer.id}`) || null } catch { return null } })
+  const [productRef3, setProductRef3] = useState(() => { try { return localStorage.getItem(`hf_product_ref_3_${influencer.id}`) || null } catch { return null } })
   const [productWorn, setProductWorn] = useState(() => localStorage.getItem('hf_product_worn') === '1')
   const [dragOver1, setDragOver1] = useState(false)
   const [dragOver2, setDragOver2] = useState(false)
+  const [dragOver3, setDragOver3] = useState(false)
   const productFileRef1 = useRef()
   const productFileRef2 = useRef()
+  const productFileRef3 = useRef()
   const [dialogue, setDialogue] = useState(() => localStorage.getItem('hf_dialogue') || '')
-  const [environment, setEnvironment] = useState('')
-  const [envKey, setEnvKey] = useState('')
+  const [envKey, setEnvKey] = useState(() => localStorage.getItem('hf_env_key') || '')
+  const [environment, setEnvironment] = useState(() => {
+    const k = localStorage.getItem('hf_env_key') || ''
+    return k ? (CS_ENV_PRESETS[k] || k) : (localStorage.getItem('hf_env_custom') || '')
+  })
   const [camera, setCamera] = useState(() => localStorage.getItem('hf_camera') || 'Handheld')
   const [vibe, setVibe] = useState(() => localStorage.getItem('hf_vibe') || '')
   const [voicePreset, setVoicePreset] = useState(() => localStorage.getItem('hf_voice_preset') || '')
@@ -1907,6 +2722,7 @@ function ContentStudio({ influencer, onUpdate }) {
   const [additionalNotes, setAdditionalNotes] = useState('')
   const [audioDataUrl, setAudioDataUrl] = useState(null)
   const [audioFileName, setAudioFileName] = useState('')
+  const [audioDuration, setAudioDuration] = useState(null)
   const audioFileRef = useRef()
   const [duration, setDuration] = useState(() => Number(localStorage.getItem('hf_duration')) || 15)
   const [aspect, setAspect] = useState(() => localStorage.getItem('hf_aspect') || '9:16')
@@ -1914,19 +2730,18 @@ function ContentStudio({ influencer, onUpdate }) {
   const [resolution, setResolution] = useState(() => localStorage.getItem('hf_resolution') || '1080p')
   const [shotMode, setShotMode] = useState(() => localStorage.getItem('hf_shot_mode') || 'oner')
   const [saved, setSaved] = useState(false)
+  const [saveModal, setSaveModal] = useState(null)
   const [generating, setGenerating] = useState(false)
   const [genProgress, setGenProgress] = useState(0)
   const [genError, setGenError] = useState(null)
-  const [genResults, setGenResults] = useState([])
+  const [genResults, setGenResults] = useState(() => { try { return JSON.parse(localStorage.getItem(`hf_gen_results_${influencer.id}`) || '[]') } catch { return [] } })
+  const [genShareUrls, setGenShareUrls] = useState([])
   const [elapsed, setElapsed] = useState(0)
   const elapsedRef = useRef(null)
   const [showPrompt, setShowPrompt] = useState(false)
-  const [lastGeneratedPrompt, setLastGeneratedPrompt] = useState(null)
+  const [lastGeneratedPrompt, setLastGeneratedPrompt] = useState(() => { try { return localStorage.getItem(`hf_last_prompt_${influencer.id}`) || null } catch { return null } })
   const [promptRecomputeTick, setPromptRecomputeTick] = useState(0)
   const [copied, setCopied] = useState(false)
-  const [tipIdx, setTipIdx] = useState(() => Math.floor(Math.random() * SEEDANCE_TIPS.length))
-  const [tipVisible, setTipVisible] = useState(true)
-  const tipQueue = useRef([])
   const [displayProgress, setDisplayProgress] = useState(0)
   const displayProgressRef = useRef(0)
   const genCardRef = useRef(null)
@@ -1940,27 +2755,27 @@ function ContentStudio({ influencer, onUpdate }) {
   const [advanced, setAdvanced] = useState(() => {
     try { return localStorage.getItem('cs_advanced_open') === '1' } catch { return false }
   })
+  const [selectedWardrobeId, setSelectedWardrobeId] = useState(() => { try { return localStorage.getItem(`hf_wardrobe_id_${influencer.id}`) || '' } catch { return '' } })
+  const wardrobeSlots = (influencer.wardrobeSlots || []).filter(s => s.image)
+  const selectedWardrobe = wardrobeSlots.find(s => s.id === selectedWardrobeId) || null
+  const [selectedHomeId, setSelectedHomeId] = useState(() => { try { return localStorage.getItem(`hf_home_id_${influencer.id}`) || '' } catch { return '' } })
+  const homeSlots = (influencer.homeSlots || []).filter(s => s.image)
+  const selectedHome = homeSlots.find(s => s.id === selectedHomeId) || null
   const videoModel = 'seedance_2_0'
 
-  // Tip cycling — every 12s
+  // Resume any video generation that was running when the user left the page
   useEffect(() => {
-    if (!generating) return
-    const id = setInterval(() => {
-      setTipVisible(false)
-      setTimeout(() => {
-        setTipIdx(cur => {
-          if (tipQueue.current.length === 0) {
-            const all = SEEDANCE_TIPS.map((_,i)=>i).filter(i=>i!==cur)
-            for (let i=all.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[all[i],all[j]]=[all[j],all[i]]}
-            tipQueue.current = all
-          }
-          return tipQueue.current.shift()
-        })
-        setTipVisible(true)
-      }, 300)
-    }, 12000)
-    return () => clearInterval(id)
-  }, [generating])
+    const pending = getPendingVideo(influencer.id)
+    if (!pending) return
+    // Ignore if started more than 10 minutes ago (likely stale)
+    if (Date.now() - pending.startedAt > 10 * 60 * 1000) { clearPendingVideo(influencer.id); return }
+    setGenerating(true)
+    setGenProgress(30)
+    resumeVideoJob(pending.jobIds, pending.count, setGenProgress, partials => { if (!cancelRef.current) persistGenResults([...partials]) }, () => cancelRef.current)
+      .then(result => { if (!cancelRef.current) { persistGenResults(result.urls); setGenShareUrls(result.shareUrls || []) } })
+      .catch(e => { if (!cancelRef.current) setGenError(e.message) })
+      .finally(() => { clearPendingVideo(influencer.id); setGenerating(false) })
+  }, [influencer.id])
 
   // Smooth fake progress during the render wait (33% → 88% over 8 minutes)
   useEffect(() => {
@@ -2000,6 +2815,25 @@ function ContentStudio({ influencer, onUpdate }) {
     return () => window.removeEventListener('keydown', onKey)
   })
 
+  // Persist product refs — base64 images keyed per influencer
+  useEffect(() => { try { productRef1 ? localStorage.setItem(`hf_product_ref_1_${influencer.id}`, productRef1) : localStorage.removeItem(`hf_product_ref_1_${influencer.id}`) } catch {} }, [productRef1, influencer.id])
+  useEffect(() => { try { productRef2 ? localStorage.setItem(`hf_product_ref_2_${influencer.id}`, productRef2) : localStorage.removeItem(`hf_product_ref_2_${influencer.id}`) } catch {} }, [productRef2, influencer.id])
+  useEffect(() => { try { productRef3 ? localStorage.setItem(`hf_product_ref_3_${influencer.id}`, productRef3) : localStorage.removeItem(`hf_product_ref_3_${influencer.id}`) } catch {} }, [productRef3, influencer.id])
+
+  // Persist last prompt per influencer
+  useEffect(() => {
+    if (!lastGeneratedPrompt) return
+    try { localStorage.setItem(`hf_last_prompt_${influencer.id}`, lastGeneratedPrompt) } catch {}
+  }, [lastGeneratedPrompt, influencer.id])
+
+  // Save gen results synchronously so navigating away mid-result never loses them
+  function persistGenResults(urls) {
+    setGenResults(urls)
+    if (urls.length > 0) {
+      try { localStorage.setItem(`hf_gen_results_${influencer.id}`, JSON.stringify(urls)) } catch {}
+    }
+  }
+
   function buildPrompt() {
     const name = influencer.name
     const phys = influencer.physicalDesc || `${name}, natural confident energy`
@@ -2007,17 +2841,21 @@ function ContentStudio({ influencer, onUpdate }) {
     // Build ordered image tag map — influencer refs first, then products
     // Higgsfield assigns @image_N in the order refs are passed to generate_video
     const infImgs = [
-      influencer.mainImage           && { role: 'identity',  url: influencer.mainImage },
-      influencer.characterSheetImage && { role: 'charsheet', url: influencer.characterSheetImage },
-      influencer.closeUpImage1       && { role: 'closeup1',  url: influencer.closeUpImage1 },
-      influencer.closeUpImage2       && { role: 'closeup2',  url: influencer.closeUpImage2 },
+      influencer.mainImage && { role: 'identity', url: influencer.mainImage },
+      selectedWardrobe
+        ? { role: 'wardrobe',  url: selectedWardrobe.image }
+        : influencer.characterSheetImage && { role: 'charsheet', url: influencer.characterSheetImage },
+      influencer.closeUpImage1 && { role: 'closeup1', url: influencer.closeUpImage1 },
+      influencer.closeUpImage2 && { role: 'closeup2', url: influencer.closeUpImage2 },
     ].filter(Boolean)
+    const homeImgEntry = selectedHome ? [{ role: 'home', url: selectedHome.image }] : []
     const prodImgs = [
       productRef1 && { role: 'product1', url: productRef1 },
       productRef2 && { role: 'product2', url: productRef2 },
+      productRef3 && { role: 'product3', url: productRef3 },
     ].filter(Boolean)
     const tagMap = {}
-    ;[...infImgs, ...prodImgs].forEach((img, i) => { tagMap[img.role] = `@image_${i + 1}` })
+    ;[...infImgs, ...homeImgEntry, ...prodImgs].forEach((img, i) => { tagMap[img.role] = `@image_${i + 1}` })
 
     // Shot count — oner = always 1, multi = auto from duration
     const shotCount = shotMode === 'oner' ? 1 : duration <= 5 ? 1 : duration <= 8 ? 2 : duration <= 12 ? 3 : 4
@@ -2034,8 +2872,14 @@ function ContentStudio({ influencer, onUpdate }) {
     const stylePreset = styleMap[camera] || styleMap['Handheld']
     const move = cameraMovement[camera] || 'locked'
 
+    const isTalkingHead = camera === 'Talking Head'
+    const isHandheld = camera === 'Handheld'
+    const wearMode = !!(productRef1 && productWorn)
+
     // Environment — free text from user input (may be a custom description or a preset)
-    const envDesc = environment || (isTalkingHead ? 'Clean minimal studio setup. Desk surface visible in foreground, soft neutral background. Soft box lighting ~5600K, even and controlled.' : 'Clean modern interior, natural window light ~5500K.')
+    const envDesc = tagMap.home
+      ? `${tagMap.home} for the location and environment setting.${environment ? ' ' + environment : ''}`
+      : environment || (isTalkingHead ? 'in a studio' : 'indoors')
 
     // Mood arc
     const moodMap = {
@@ -2066,9 +2910,6 @@ function ContentStudio({ influencer, onUpdate }) {
     // Full dialogue — annotated with performance notation from the guide
     const fullDialogue = dialogue.trim()
     const prod1Tag = tagMap.product1 || null
-    const isHandheld = camera === 'Handheld'
-    const isTalkingHead = camera === 'Talking Head'
-    const wearMode = !!(productRef1 && productWorn)
 
     // Parse notes first so action beats can be woven into annotateDialogue
     const { actionBeats, directionNotes } = parseAdditionalNotes(additionalNotes, duration)
@@ -2081,6 +2922,7 @@ function ContentStudio({ influencer, onUpdate }) {
     const productRules = []
     if (tagMap.product1) productRules.push(`${tagMap.product1} is the product — same object every frame, same color, label position, and size. Never substituted. ${tagMap.product1} contributes ONLY the product — never the face, identity, or wardrobe.${wearMode ? ` ${tagMap.product1} is WORN — never held. She naturally interacts with it once or twice — a brief touch or glance — without overdoing it.` : ''}`)
     if (tagMap.product2) productRules.push(`${tagMap.product2} is the second product — same consistency rules apply.`)
+    if (tagMap.product3) productRules.push(`${tagMap.product3} is the third product — same consistency rules apply.`)
 
     // Build shots
     const shotDurs = shotCount === 1 ? [duration]
@@ -2100,7 +2942,7 @@ function ContentStudio({ influencer, onUpdate }) {
 
       if (shotMode === 'oner') {
         const action = annotatedDialogue || `@image_1 faces camera. Eyes on lens at 0:00.`
-        shots.push(`ACTION:\n0:00 to 0:${String(duration).padStart(2,'0')} — ${framing}, ${lens}, ${move}. One continuous take.\n\n${action} Natural conversational gestures as she speaks.`)
+        shots.push(`ACTION:\n0:00 to 0:${String(duration).padStart(2,'0')} — ${framing}, ${lens}, ${move}. One continuous take.\n\n${action} Natural conversational gestures as she speaks. End cleanly with the character holding a final pose, no talking or lip movement.`)
       } else if (i === 0) {
         const hookLine = dialogueLines[0] ? annotateDialogue(dialogueLines[0], prod1Tag, duration, isHandheld, wearMode) : `@image_1 faces camera. Eyes on lens at 0:00.`
         shots.push(`SHOT 1 — ${ts}, ${framing}, ${lens}, ${move}.\n${hookLine}`)
@@ -2110,7 +2952,8 @@ function ContentStudio({ influencer, onUpdate }) {
           ? (wearMode ? `she touches ${prod1Tag} and angles toward camera to show it` : `she tilts ${prod1Tag} toward camera slightly`)
           : 'one hand lifts — palm-up, natural half-shrug'
         const lineStr = line ? `"${line.trim()}" [beat — eyes stay on camera.] ` : '[holds the moment.] '
-        shots.push(`SHOT ${i+1} — ${ts}, ${framing}, ${lens}, ${move}.\n@image_1 continues. ${gesture}. ${lineStr}Voice unhurried. Tone genuine.`)
+        const closingTail = i === shotCount - 1 ? ' End cleanly with the character holding a final pose, no talking or lip movement.' : ''
+        shots.push(`SHOT ${i+1} — ${ts}, ${framing}, ${lens}, ${move}.\n@image_1 continues. ${gesture}. ${lineStr}Voice unhurried. Tone genuine.${closingTail}`)
       }
       t = te
     }
@@ -2120,10 +2963,12 @@ function ContentStudio({ influencer, onUpdate }) {
     if (tagMap.closeup1) subjectParts.push(`${tagMap.closeup1} for close-up facial detail — eye color, skin texture, pores.`)
     if (tagMap.closeup2) subjectParts.push(`${tagMap.closeup2} for feature-level accuracy — lip shape, brow arch, skin tone.`)
 
-    // WARDROBE — character sheet ref takes priority over slot names
-    const wardrobeLine = tagMap.charsheet
-      ? `Match ${tagMap.charsheet} exactly — same outfit silhouette, fabric, color, styling throughout. Zero variation.`
-      : ((influencer.wardrobeSlots||[]).filter(s=>s.name).map(s=>s.name).join(', ') || 'Casual, stylish, consistent throughout.')
+    // WARDROBE — selected wardrobe ref takes priority, then charsheet, then slot names
+    const wardrobeLine = tagMap.wardrobe
+      ? `Match outfit from ${tagMap.wardrobe} exactly — silhouette, fabric, color, styling, zero variation. Outfit comes from ${tagMap.wardrobe} only, not @image_1.`
+      : tagMap.charsheet
+        ? `Match ${tagMap.charsheet} exactly — same outfit silhouette, fabric, color, styling throughout. Zero variation.`
+        : ((influencer.wardrobeSlots||[]).filter(s=>s.name).map(s=>s.name).join(', ') || 'Casual, stylish, consistent throughout.')
 
     const allPresets = [...(VOICE_PRESETS.female || []), ...(VOICE_PRESETS.male || [])]
     const deliveryLine = audioDataUrl
@@ -2163,45 +3008,55 @@ STYLE: ${stylePreset}
 
 DELIVERY: ${deliveryLine}
 ${directionNotes ? `\nDIRECTION: ${directionNotes}` : ''}
-LOGIC RULE: @image_1 face is fixed — same bone structure, eye color, skin tone, jawline, zero drift. Only one @image_1 in frame at any time.${shotMode==='oner' ? ' ZERO CUTS — single uninterrupted take 0:00 to ' + duration + 's. No jump cuts, no zoom, no camera switch, no temporal skip. @image_1 moves continuously — never freezes.' : ' Wardrobe identical across all shots.'} No phone or smartphone visible in frame at any time — no device in hand, on any surface, or in the background. No music. No captions. No text overlays.${productRules.length ? ' ' + productRules.join(' ') : ''}
+LOGIC RULE: @image_1 face is fixed — same bone structure, eye color, skin tone, jawline, zero drift. Only one @image_1 in frame at any time.${shotMode==='oner' ? ' ZERO CUTS — single uninterrupted take 0:00 to ' + duration + 's. No jump cuts, no zoom, no camera switch, no temporal skip. @image_1 moves continuously — never freezes.' : ' Wardrobe identical across all shots.'}${tagMap.wardrobe ? ` Outfit matches ${tagMap.wardrobe} throughout — do not take outfit from @image_1.` : ''} No phone or smartphone visible in frame at any time — no device in hand, on any surface, or in the background. No music. No captions. No text overlays.${productRules.length ? ' ' + productRules.join(' ') : ''}
 
 ---
 
 ${shotsWithBeats.join('\n\n')}`
   }
 
-  function saveScript(videoUrl = '') {
-    const canSave = dialogue.trim() || environment || vibe
-    if (!canSave && !videoUrl) return
-    const parts = [vibe, environment, dialogue.trim().slice(0,28)].filter(Boolean)
+  function openSaveModal() {
+    const canSave = dialogue.trim() || environment || vibe || genResults.length > 0
+    if (!canSave) return
+    setSaveModal(true)
+  }
+
+  function saveScript({ title }) {
     const newScript = {
       id: Math.random().toString(36).slice(2),
-      title: parts.join(' · ') || 'Video',
-      status: videoUrl ? 'Done' : 'Planned',
+      title,
+      status: 'Unposted',
       prompt: buildPrompt(),
       script: dialogue.trim(),
-      notes: `${duration}s | ${aspect} | ${outputs} output${outputs>1?'s':''}${productRef1?' | product 1':''}${productRef2?' + product 2':''}${environment?` | ${environment}`:''}${camera?` | ${camera}`:''}${vibe?` | ${vibe}`:''}`,
-      videoUrl,
+      videoUrls: [],
+      postedUrl: '',
+      meta: { camera, vibe, duration, aspect, envKey, shotMode, hasProduct: !!(productRef1||productRef2||productRef3) },
     }
-    onUpdate({ scripts: [...(influencer.scripts||[]), newScript] })
+    onUpdate({ scripts: [newScript, ...(influencer.scripts||[])] })
     setSaved(true)
+    setSaveModal(null)
     setTimeout(() => setSaved(false), 2200)
+    if (onSaveToScripts) {
+      setTimeout(() => onSaveToScripts(newScript.id), 1400)
+    }
   }
 
   function buildRefs() {
     return [
       influencer.mainImage,
-      influencer.characterSheetImage,
+      selectedWardrobe?.image || influencer.characterSheetImage,
       influencer.closeUpImage1,
       influencer.closeUpImage2,
+      selectedHome?.image,
       productRef1,
       productRef2,
+      productRef3,
     ].filter(Boolean)
   }
 
   function saveToHistory() {
     const builtPrompt = buildPrompt()
-    const entry = { dialogue, environment, envKey, camera, vibe, voicePreset, voiceCustom, additionalNotes, duration, aspect, outputs, shotMode, productRef1, productRef2, productWorn, prompt: builtPrompt, ts: Date.now() }
+    const entry = { dialogue, environment, envKey, camera, vibe, voicePreset, voiceCustom, additionalNotes, duration, aspect, outputs, shotMode, productRef1, productRef2, productRef3, productWorn, prompt: builtPrompt, ts: Date.now() }
     const prev = JSON.parse(localStorage.getItem('hf_video_history') || '[]')
     const next = [entry, ...prev.filter(e => e.ts !== entry.ts)].slice(0, 5)
     localStorage.setItem('hf_video_history', JSON.stringify(next))
@@ -2223,6 +3078,7 @@ ${shotsWithBeats.join('\n\n')}`
     setShotMode(entry.shotMode || 'oner')
     if (entry.productRef1) setProductRef1(entry.productRef1)
     if (entry.productRef2) setProductRef2(entry.productRef2)
+    if (entry.productRef3) setProductRef3(entry.productRef3)
     setProductWorn(!!entry.productWorn)
     if (entry.prompt) {
       setLastGeneratedPrompt(entry.prompt)
@@ -2261,6 +3117,8 @@ ${shotsWithBeats.join('\n\n')}`
     setGenerating(true)
     setGenError(null)
     setGenResults([])
+    setGenShareUrls([])
+    try { localStorage.removeItem(`hf_gen_results_${influencer.id}`) } catch {}
     setGenProgress(0)
     setElapsed(0)
     saveToHistory()
@@ -2268,7 +3126,7 @@ ${shotsWithBeats.join('\n\n')}`
     const start = Date.now()
     elapsedRef.current = setInterval(() => setElapsed(Math.floor((Date.now() - start) / 1000)), 1000)
     try {
-      const urls = await generateVideo({
+      const result = await generateVideo({
         prompt: buildPrompt(),
         aspectRatio: aspect,
         duration,
@@ -2278,10 +3136,14 @@ ${shotsWithBeats.join('\n\n')}`
         model: videoModel,
         resolution,
         onProgress: setGenProgress,
-        onPartialResults: partials => { if (!cancelRef.current) setGenResults([...partials]) },
+        onPartialResults: partials => { if (!cancelRef.current) persistGenResults([...partials]) },
         isCancelled: () => cancelRef.current,
+        pendingKey: influencer.id,
       })
-      if (!cancelRef.current) setGenResults(urls)
+      if (!cancelRef.current) {
+        persistGenResults(result.urls)
+        setGenShareUrls(result.shareUrls || [])
+      }
     } catch (e) {
       if (!cancelRef.current) setGenError(e.message)
     } finally {
@@ -2293,7 +3155,7 @@ ${shotsWithBeats.join('\n\n')}`
   async function regenerateSlot(slotIdx) {
     setRegenSlot(slotIdx)
     try {
-      const urls = await generateVideo({
+      const result = await generateVideo({
         prompt: buildPrompt(),
         aspectRatio: aspect,
         duration,
@@ -2305,7 +3167,7 @@ ${shotsWithBeats.join('\n\n')}`
         onProgress: () => {},
         isCancelled: () => false,
       })
-      if (urls[0]) setGenResults(prev => { const n=[...prev]; n[slotIdx]=urls[0]; return n })
+      if (result.urls?.[0]) setGenResults(prev => { const n=[...prev]; n[slotIdx]=result.urls[0]; try { localStorage.setItem(`hf_gen_results_${influencer.id}`, JSON.stringify(n)) } catch {}; return n })
     } catch (e) {
       setGenError(e.message)
     } finally {
@@ -2314,13 +3176,36 @@ ${shotsWithBeats.join('\n\n')}`
   }
 
   const canAct = dialogue.trim() || environment || vibe
+
+  function clearAll() {
+    setDialogue(''); localStorage.setItem('hf_dialogue', '')
+    setEnvKey(''); setEnvironment(''); localStorage.setItem('hf_env_key', ''); localStorage.setItem('hf_env_custom', '')
+    setVibe(''); localStorage.setItem('hf_vibe', '')
+    setCamera('Handheld'); localStorage.setItem('hf_camera', 'Handheld')
+    setVoicePreset(''); setVoiceCustom(''); localStorage.setItem('hf_voice_preset', ''); localStorage.setItem('hf_voice_custom', '')
+    setAdditionalNotes('')
+    setProductRef1(null); setProductRef2(null); setProductRef3(null)
+    setProductWorn(false); localStorage.setItem('hf_product_worn', '0')
+    setAudioDataUrl(null); setAudioFileName(''); setAudioDuration(null)
+    setGenResults([]); try { localStorage.removeItem(`hf_gen_results_${influencer.id}`) } catch {}
+    setGenError(null)
+  }
+
   const videos = (influencer.scripts||[]).filter(s=>s.videoUrl)
 
   return (
     <div style={{display:'flex',flexDirection:'column',gap:12}}>
 
+      {/* Save Script modal */}
+      {saveModal && (
+        <SaveScriptModal
+          onSave={saveScript}
+          onClose={()=>setSaveModal(null)}
+        />
+      )}
+
       {/* Influencer reference banner */}
-      {allImages.length > 0 && (
+      {allImages.length > 0 ? (
         <div style={{
           display:'flex',alignItems:'center',gap:10,padding:'9px 13px',borderRadius:10,
           background:'rgba(139,92,246,0.06)',border:'1px solid rgba(139,92,246,0.15)',
@@ -2337,17 +3222,32 @@ ${shotsWithBeats.join('\n\n')}`
             <span style={{fontWeight:600,color:'var(--text-primary)'}}>{influencer.name}'s images</span>{' '}
             are auto-included as identity references
           </div>
-          {history.length > 0 && (
-            <button onClick={()=>setShowHistory(v=>!v)} style={{
-              marginLeft:'auto',display:'flex',alignItems:'center',gap:5,padding:'4px 9px',borderRadius:7,
+          <div style={{marginLeft:'auto',display:'flex',alignItems:'center',gap:6,flexShrink:0}}>
+            {history.length > 0 && (
+              <button onClick={()=>setShowHistory(v=>!v)} style={{
+                display:'flex',alignItems:'center',gap:5,padding:'4px 9px',borderRadius:7,
+                fontSize:11,fontWeight:600,color:'var(--text-tertiary)',
+                background:'transparent',border:'1px solid var(--border)',
+              }}>
+                <span>🕐</span>
+                <span>Recent</span>
+                <span style={{fontSize:9,opacity:0.55}}>{showHistory?'▲':'▼'}</span>
+              </button>
+            )}
+            <button onClick={clearAll} disabled={generating} style={{
+              padding:'4px 9px',borderRadius:7,
               fontSize:11,fontWeight:600,color:'var(--text-tertiary)',
-              background:'transparent',border:'1px solid var(--border)',flexShrink:0,
-            }}>
-              <span>🕐</span>
-              <span>Recent</span>
-              <span style={{fontSize:9,opacity:0.55}}>{showHistory?'▲':'▼'}</span>
-            </button>
-          )}
+              background:'transparent',border:'1px solid var(--border)',
+            }}>Clear</button>
+          </div>
+        </div>
+      ) : (
+        <div style={{display:'flex',justifyContent:'flex-end'}}>
+          <button onClick={clearAll} disabled={generating} style={{
+            padding:'4px 9px',borderRadius:7,
+            fontSize:11,fontWeight:600,color:'var(--text-tertiary)',
+            background:'transparent',border:'1px solid var(--border)',
+          }}>Clear</button>
         </div>
       )}
 
@@ -2361,7 +3261,7 @@ ${shotsWithBeats.join('\n\n')}`
               transition:'border-color 0.15s',
             }}>
               <div style={{display:'flex',alignItems:'center',gap:8,marginBottom:6}}>
-                {[h.productRef1, h.productRef2].filter(Boolean).map((img,pi)=>(
+                {[h.productRef1, h.productRef2, h.productRef3].filter(Boolean).map((img,pi)=>(
                   <img key={pi} src={img} style={{
                     width:26,height:26,borderRadius:6,objectFit:'contain',flexShrink:0,
                     border:'1px solid var(--border)',background:'var(--bg)',
@@ -2402,7 +3302,6 @@ ${shotsWithBeats.join('\n\n')}`
         {dialogue.trim() && (() => {
           const words = dialogue.trim().split(/\s+/).length
           const max = VIDEO_MAX_WORDS[duration] || 25
-          const estSecs = Math.round(words / 3.3)
           const over = words > max
           const approaching = !over && words > max * 0.85
           return (
@@ -2411,8 +3310,7 @@ ${shotsWithBeats.join('\n\n')}`
               fontSize:11,fontWeight:600,
               color: over ? '#FF3B30' : approaching ? '#F59E0B' : 'var(--text-tertiary)',
             }}>
-              {words} words · ~{estSecs}s to say
-              {over && <span style={{marginLeft:5,opacity:0.85}}>— might spill past {duration}s</span>}
+              {words} words
             </div>
           )
         })()}
@@ -2420,11 +3318,11 @@ ${shotsWithBeats.join('\n\n')}`
 
       {/* Step 2: Products */}
       <Sec>
-        <CSStepHeader n={2} title="Products" sub="Drag in up to 2 product images (optional)"/>
+        <CSStepHeader n={2} title="Products" sub="Drag in up to 3 product images (optional)"/>
         <div style={{display:'flex',gap:10}}>
           <CSProductSlot value={productRef1} onChange={v=>{setProductRef1(v);if(!v){setProductWorn(false);localStorage.setItem('hf_product_worn','0')}}} dragOver={dragOver1} setDragOver={setDragOver1} fileRef={productFileRef1} label="Product 1"/>
           <CSProductSlot value={productRef2} onChange={setProductRef2} dragOver={dragOver2} setDragOver={setDragOver2} fileRef={productFileRef2} label="Product 2"/>
-          <div style={{flex:1}}/>
+          <CSProductSlot value={productRef3} onChange={setProductRef3} dragOver={dragOver3} setDragOver={setDragOver3} fileRef={productFileRef3} label="Product 3"/>
         </div>
         {productRef1 && (
           <div style={{marginTop:12,display:'flex',alignItems:'center',gap:8}}>
@@ -2464,34 +3362,132 @@ ${shotsWithBeats.join('\n\n')}`
       {/* Advanced options — collapsible */}
       {advanced && (<>
 
+        {/* Wardrobe */}
+        <Sec>
+          <CSStepHeader n={3} title="Wardrobe" sub="Pin a wardrobe look as the outfit reference for this video."/>
+          {wardrobeSlots.length === 0 ? (
+            <div style={{fontSize:12,color:'var(--text-tertiary)',padding:'9px 12px',background:'var(--bg-tertiary)',borderRadius:8}}>
+              No wardrobe looks yet — generate some in the Wardrobe tab first.
+            </div>
+          ) : (
+            <div style={{display:'flex',flexDirection:'column',gap:10}}>
+              <div style={{display:'flex',gap:8,flexWrap:'wrap'}}>
+                <button
+                  onClick={() => { setSelectedWardrobeId(''); localStorage.setItem(`hf_wardrobe_id_${influencer.id}`, '') }}
+                  style={{
+                    padding:'7px 14px',borderRadius:980,fontSize:12,fontWeight:600,
+                    background: !selectedWardrobeId ? 'linear-gradient(135deg,rgba(236,72,153,0.15),rgba(139,92,246,0.15))' : 'var(--bg-tertiary)',
+                    color: !selectedWardrobeId ? '#8B5CF6' : 'var(--text-secondary)',
+                    border: !selectedWardrobeId ? '1.5px solid rgba(139,92,246,0.4)' : '1.5px solid transparent',
+                    transition:'all 0.15s',
+                  }}
+                >Current Look</button>
+                {wardrobeSlots.map(s => {
+                  const on = selectedWardrobeId === s.id
+                  return (
+                    <button key={s.id}
+                      onClick={() => { setSelectedWardrobeId(s.id); localStorage.setItem(`hf_wardrobe_id_${influencer.id}`, s.id) }}
+                      style={{
+                        padding:'7px 14px',borderRadius:980,fontSize:12,fontWeight:600,
+                        background: on ? 'linear-gradient(135deg,rgba(236,72,153,0.15),rgba(139,92,246,0.15))' : 'var(--bg-tertiary)',
+                        color: on ? '#8B5CF6' : 'var(--text-secondary)',
+                        border: on ? '1.5px solid rgba(139,92,246,0.4)' : '1.5px solid transparent',
+                        transition:'all 0.15s',
+                      }}
+                    >{s.name}</button>
+                  )
+                })}
+              </div>
+              {selectedWardrobe && (
+                <div style={{display:'flex',gap:12,alignItems:'center',padding:'10px 12px',background:'var(--bg-tertiary)',borderRadius:10}}>
+                  <img src={selectedWardrobe.image} alt={selectedWardrobe.name} style={{width:72,height:54,objectFit:'cover',borderRadius:8,flexShrink:0}}/>
+                  <div>
+                    <div style={{fontSize:12,fontWeight:700,color:'var(--text-primary)'}}>{selectedWardrobe.name}</div>
+                    <div style={{fontSize:11,color:'var(--text-tertiary)',marginTop:2}}>Sent as wardrobe reference · outfit will match this look</div>
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
+        </Sec>
+
         {/* Location */}
         <Sec>
-          <CSStepHeader n={3} title="Location" sub="Where is the scene? Pick a preset or write your own."/>
+          <CSStepHeader n={4} title="Location" sub="Where is the scene? Pick a preset, use a home setting, or write your own."/>
+
+          {/* Home setting picker */}
+          {homeSlots.length > 0 && (
+            <div style={{marginBottom:14}}>
+              <div style={{fontSize:11,fontWeight:600,color:'var(--text-tertiary)',textTransform:'uppercase',letterSpacing:'0.5px',marginBottom:8}}>Home Setting</div>
+              <div style={{display:'flex',gap:8,flexWrap:'wrap',marginBottom: selectedHome ? 10 : 0}}>
+                <button
+                  onClick={() => { setSelectedHomeId(''); localStorage.setItem(`hf_home_id_${influencer.id}`, '') }}
+                  style={{
+                    padding:'7px 14px',borderRadius:980,fontSize:12,fontWeight:600,
+                    background: !selectedHomeId ? 'linear-gradient(135deg,rgba(236,72,153,0.15),rgba(139,92,246,0.15))' : 'var(--bg-tertiary)',
+                    color: !selectedHomeId ? '#8B5CF6' : 'var(--text-secondary)',
+                    border: !selectedHomeId ? '1.5px solid rgba(139,92,246,0.4)' : '1.5px solid transparent',
+                    transition:'all 0.15s',
+                  }}
+                >None</button>
+                {homeSlots.map(s => {
+                  const on = selectedHomeId === s.id
+                  return (
+                    <button key={s.id}
+                      onClick={() => { setSelectedHomeId(s.id); localStorage.setItem(`hf_home_id_${influencer.id}`, s.id) }}
+                      style={{
+                        padding:'7px 14px',borderRadius:980,fontSize:12,fontWeight:600,
+                        background: on ? 'linear-gradient(135deg,rgba(236,72,153,0.15),rgba(139,92,246,0.15))' : 'var(--bg-tertiary)',
+                        color: on ? '#8B5CF6' : 'var(--text-secondary)',
+                        border: on ? '1.5px solid rgba(139,92,246,0.4)' : '1.5px solid transparent',
+                        transition:'all 0.15s',
+                      }}
+                    >{s.name}</button>
+                  )
+                })}
+              </div>
+              {selectedHome && (
+                <div style={{display:'flex',gap:12,alignItems:'center',padding:'10px 12px',background:'var(--bg-tertiary)',borderRadius:10,marginBottom:10}}>
+                  <img src={selectedHome.image} alt={selectedHome.name} style={{width:72,height:54,objectFit:'cover',borderRadius:8,flexShrink:0}}/>
+                  <div>
+                    <div style={{fontSize:12,fontWeight:700,color:'var(--text-primary)'}}>{selectedHome.name}</div>
+                    <div style={{fontSize:11,color:'var(--text-tertiary)',marginTop:2}}>Sent as location reference · scene will be set in this environment</div>
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
+
           <CSChips
             options={CS_ENVIRONMENTS}
             value={envKey}
             onChange={k => {
               setEnvKey(k)
               setEnvironment(k ? (CS_ENV_PRESETS[k] || k) : '')
+              localStorage.setItem('hf_env_key', k)
+              localStorage.setItem('hf_env_custom', '')
             }}
           />
-          <textarea
-            value={environment}
-            onChange={e => { setEnvironment(e.target.value); setEnvKey('') }}
-            placeholder="e.g. Dubai Mall with shoppers in the background, luxury retail lighting. Or: Rooftop at golden hour, city skyline behind her."
-            rows={2}
+          <input
+            value={envKey ? '' : environment}
+            onChange={e => {
+              setEnvironment(e.target.value)
+              setEnvKey('')
+              localStorage.setItem('hf_env_key', '')
+              localStorage.setItem('hf_env_custom', e.target.value)
+            }}
+            placeholder="or type a custom location — e.g. In a Dubai mall"
             style={{
               width:'100%',padding:'10px 12px',borderRadius:10,marginTop:10,
               border:'1.5px solid var(--border)',background:'var(--bg)',
-              fontSize:13,color:'var(--text-primary)',resize:'vertical',
-              lineHeight:1.6,boxSizing:'border-box',fontFamily:'inherit',
+              fontSize:13,color:'var(--text-primary)',boxSizing:'border-box',fontFamily:'inherit',
             }}
           />
         </Sec>
 
         {/* Camera */}
         <Sec>
-          <CSStepHeader n={4} title="Camera" sub="How should the shot be framed?"/>
+          <CSStepHeader n={5} title="Camera" sub="How should the shot be framed?"/>
           <div style={{display:'flex',flexWrap:'wrap',gap:7}}>
             {CS_CAMERAS.map(c => {
               const meta = CAMERA_META[c] || { label: c, desc: '' }
@@ -2511,7 +3507,7 @@ ${shotsWithBeats.join('\n\n')}`
 
         {/* Vibe */}
         <Sec>
-          <CSStepHeader n={5} title="Vibe" sub="What's the overall mood and energy?"/>
+          <CSStepHeader n={6} title="Vibe" sub="What's the overall mood and energy?"/>
           <CSChips options={CS_VIBES} value={vibe} onChange={v=>{setVibe(v);localStorage.setItem('hf_vibe',v)}}/>
           {vibe && VIBE_META[vibe] && (
             <div style={{
@@ -2523,13 +3519,22 @@ ${shotsWithBeats.join('\n\n')}`
 
         {/* Voice */}
         <Sec>
-          <CSStepHeader n={6} title="Voice" sub="Upload your audio or pick a voice style."/>
+          <CSStepHeader n={7} title="Voice" sub="Upload your audio or pick a voice style."/>
 
           <input ref={audioFileRef} type="file" accept="audio/*" style={{display:'none'}} onChange={e => {
             const file = e.target.files?.[0]
             if (!file) return
             const reader = new FileReader()
-            reader.onload = ev => { setAudioDataUrl(ev.target.result); setAudioFileName(file.name) }
+            reader.onload = ev => {
+              const dataUrl = ev.target.result
+              const audio = new window.Audio()
+              audio.onloadedmetadata = () => {
+                setAudioDuration(audio.duration)
+                setAudioDataUrl(dataUrl)
+                setAudioFileName(file.name)
+              }
+              audio.src = dataUrl
+            }
             reader.readAsDataURL(file)
             e.target.value = ''
           }}/>
@@ -2550,9 +3555,12 @@ ${shotsWithBeats.join('\n\n')}`
               </div>
               <div style={{flex:1,minWidth:0}}>
                 <div style={{fontSize:12,fontWeight:700,color:'var(--text-primary)',overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{audioFileName}</div>
-                <div style={{fontSize:11,color:'rgba(139,92,246,0.8)',marginTop:2}}>Lip-sync via @audio_1 — voice presets ignored</div>
+                {audioDuration != null && audioDuration > 13.5
+                  ? <div style={{fontSize:11,fontWeight:600,color:'#FF3B30',marginTop:2}}>⚠ {audioDuration.toFixed(1)}s — max 13s. Trim your audio before uploading.</div>
+                  : <div style={{fontSize:11,color:'rgba(139,92,246,0.8)',marginTop:2}}>{audioDuration != null ? `${audioDuration.toFixed(1)}s · ` : ''}Lip-sync via @audio_1 — voice presets ignored</div>
+                }
               </div>
-              <button onClick={() => { setAudioDataUrl(null); setAudioFileName('') }} style={{
+              <button onClick={() => { setAudioDataUrl(null); setAudioFileName(''); setAudioDuration(null) }} style={{
                 fontSize:12,fontWeight:600,color:'var(--text-tertiary)',background:'var(--bg-tertiary)',
                 border:'1px solid var(--border)',padding:'5px 10px',borderRadius:7,cursor:'pointer',flexShrink:0,
               }}>Remove</button>
@@ -2629,7 +3637,7 @@ ${shotsWithBeats.join('\n\n')}`
 
         {/* Shot type */}
         <Sec>
-          <CSStepHeader n={7} title="Shot Type" sub="How many cuts in the video?"/>
+          <CSStepHeader n={8} title="Shot Type" sub="How many cuts in the video?"/>
           <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:8}}>
             {[
               {id:'oner', label:'1 Shot', sub:'Zero cuts — one continuous take'},
@@ -2661,7 +3669,7 @@ ${shotsWithBeats.join('\n\n')}`
 
         {/* Additional Notes */}
         <Sec>
-          <CSStepHeader n={8} title="Additional Notes" sub="Hard requirements that go directly into the prompt."/>
+          <CSStepHeader n={9} title="Additional Notes" sub="Hard requirements that go directly into the prompt."/>
           <textarea
             value={additionalNotes}
             onChange={e => setAdditionalNotes(e.target.value)}
@@ -2678,7 +3686,7 @@ ${shotsWithBeats.join('\n\n')}`
 
         {/* Settings */}
         <Sec>
-          <CSStepHeader n={9} title="Settings"/>
+          <CSStepHeader n={10} title="Settings"/>
 
           <div style={{display:'flex',gap:20,flexWrap:'wrap',alignItems:'flex-start'}}>
 
@@ -2791,7 +3799,7 @@ ${shotsWithBeats.join('\n\n')}`
                   </div>
                   <div style={{display:'flex',alignItems:'center',gap:10}}>
                     <div style={{display:'flex',alignItems:'baseline',gap:3}}>
-                      <span style={{fontSize:16,fontWeight:800,color:'#8B5CF6',fontVariantNumeric:'tabular-nums'}}>{elapsed}s</span>
+                      <span style={{fontSize:16,fontWeight:800,color:'#8B5CF6',fontVariantNumeric:'tabular-nums'}}>{fmtElapsed(elapsed)}</span>
                       <span style={{fontSize:10,color:'var(--text-tertiary)'}}>/ ~8 min</span>
                     </div>
                     <button onClick={cancelGeneration} style={{
@@ -2814,26 +3822,6 @@ ${shotsWithBeats.join('\n\n')}`
 
               </div>
 
-              {/* Seedance tip card */}
-              <div style={{
-                padding:'12px 14px',borderRadius:12,
-                background:'var(--bg-tertiary)',border:'1px solid var(--border)',
-                opacity: tipVisible ? 1 : 0,transition:'opacity 0.3s ease',
-                minHeight:56,
-              }}>
-                <div style={{display:'flex',alignItems:'flex-start',gap:10}}>
-                  <div style={{
-                    fontSize:9,fontWeight:800,letterSpacing:'0.6px',textTransform:'uppercase',
-                    color:'#8B5CF6',background:'rgba(139,92,246,0.1)',
-                    padding:'3px 7px',borderRadius:5,flexShrink:0,marginTop:1,whiteSpace:'nowrap',
-                  }}>
-                    {SEEDANCE_TIPS[tipIdx].label}
-                  </div>
-                  <div style={{fontSize:12,color:'var(--text-secondary)',lineHeight:1.55}}>
-                    {SEEDANCE_TIPS[tipIdx].text}
-                  </div>
-                </div>
-              </div>
             </div>
           )}
 
@@ -2909,11 +3897,6 @@ ${shotsWithBeats.join('\n\n')}`
                             )}
                           </div>
                           <div style={{display:'flex',flexDirection:'column',gap:7}}>
-                            <button onClick={()=>saveScript(url)} style={{
-                              padding:'10px',borderRadius:10,fontSize:13,fontWeight:600,
-                              background:'linear-gradient(135deg,#EC4899,#8B5CF6)',color:'#fff',border:'none',
-                              boxShadow:'0 2px 8px rgba(139,92,246,0.3)',
-                            }}>Save</button>
                             <a href={url} download target="_blank" rel="noreferrer" style={{
                               padding:'10px',borderRadius:10,fontSize:13,fontWeight:600,textAlign:'center',
                               background:'var(--bg-tertiary)',color:'var(--text-secondary)',textDecoration:'none',
@@ -2934,11 +3917,6 @@ ${shotsWithBeats.join('\n\n')}`
                       ) : (
                         /* Action bar for multi-card */
                         <div style={{display:'flex',gap:7,padding:'9px 10px',background:'var(--bg)'}}>
-                          <button onClick={()=>saveScript(url)} style={{
-                            flex:1,padding:'8px',borderRadius:8,fontSize:12,fontWeight:600,
-                            background:'linear-gradient(135deg,#EC4899,#8B5CF6)',color:'#fff',border:'none',
-                            boxShadow:'0 2px 8px rgba(139,92,246,0.3)',
-                          }}>Save</button>
                           <a href={url} download target="_blank" rel="noreferrer" style={{
                             flex:1,padding:'8px',borderRadius:8,fontSize:12,fontWeight:600,textAlign:'center',
                             background:'var(--bg-tertiary)',color:'var(--text-secondary)',textDecoration:'none',
@@ -2993,7 +3971,7 @@ ${shotsWithBeats.join('\n\n')}`
                         </div>
                       )}
                       <div style={{position:'absolute',bottom:10,right:12,fontSize:11,fontWeight:600,color:'rgba(139,92,246,0.35)',fontVariantNumeric:'tabular-nums'}}>
-                        {elapsed}s
+                        {fmtElapsed(elapsed)}
                       </div>
                     </div>
                   )}
@@ -3010,16 +3988,22 @@ ${shotsWithBeats.join('\n\n')}`
           onClick={()=>setShowPrompt(v=>!v)}
           style={{
             display:'flex',alignItems:'center',gap:7,
-            padding:'8px 14px',borderRadius:9,cursor:'pointer',
-            background: showPrompt ? 'rgba(139,92,246,0.08)' : 'var(--bg-tertiary)',
-            border: showPrompt ? '1.5px solid rgba(139,92,246,0.3)' : '1.5px solid var(--border)',
+            padding:'8px 14px',borderRadius:10,cursor:'pointer',
+            background: showPrompt ? 'rgba(139,92,246,0.1)' : 'var(--bg-tertiary)',
+            border: showPrompt ? '1.5px solid rgba(139,92,246,0.35)' : '1.5px solid var(--border)',
             color: showPrompt ? '#8B5CF6' : 'var(--text-secondary)',
             fontSize:12,fontWeight:600,transition:'all 0.15s',
+            boxShadow: showPrompt ? '0 0 0 3px rgba(139,92,246,0.08)' : 'none',
           }}
         >
-          <span style={{fontSize:14,lineHeight:1}}>{'</>'}</span>
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+            <polyline points="16 18 22 12 16 6"/>
+            <polyline points="8 6 2 12 8 18"/>
+          </svg>
           <span>{showPrompt ? 'Hide prompt' : 'Inspect prompt'}</span>
-          <span style={{fontSize:10,opacity:0.6}}>{showPrompt ? '▲' : '▼'}</span>
+          <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" style={{opacity:0.5,transform: showPrompt ? 'rotate(180deg)' : 'rotate(0deg)',transition:'transform 0.15s'}}>
+            <polyline points="6 9 12 15 18 9"/>
+          </svg>
         </button>
         {showPrompt && (
           <div style={{
@@ -3081,13 +4065,13 @@ ${shotsWithBeats.join('\n\n')}`
         {/* Action buttons */}
         <div style={{display:'flex',gap:10}}>
           <button
-            onClick={()=>saveScript()}
+            onClick={()=>openSaveModal(null)}
             disabled={!canAct || generating}
             style={{
               flex:1,padding:'14px',borderRadius:14,fontSize:14,fontWeight:600,
-              background:'transparent',
-              color: canAct && !generating ? 'var(--text-secondary)' : 'var(--text-tertiary)',
-              border: canAct && !generating ? '1.5px solid var(--border)' : '1.5px solid var(--bg-tertiary)',
+              background: saved ? 'rgba(52,199,89,0.12)' : (canAct && !generating ? 'rgba(139,92,246,0.1)' : 'transparent'),
+              color: saved ? '#34C759' : (canAct && !generating ? '#8B5CF6' : 'var(--text-tertiary)'),
+              border: saved ? '1.5px solid rgba(52,199,89,0.3)' : (canAct && !generating ? '1.5px solid rgba(139,92,246,0.3)' : '1.5px solid var(--bg-tertiary)'),
               transition:'all 0.2s',
             }}
           >{saved ? '✓ Saved' : 'Save'}</button>
@@ -3103,7 +4087,7 @@ ${shotsWithBeats.join('\n\n')}`
             }}
           >
             {generating
-              ? (genResults.length > 0 ? `${genResults.length}/${outputs} ready · ${elapsed}s` : `Generating... ${elapsed}s`)
+              ? (genResults.length > 0 ? `${genResults.length}/${outputs} ready · ${fmtElapsed(elapsed)}` : `Generating... ${fmtElapsed(elapsed)}`)
               : <>{`✦ Generate${outputs > 1 ? ` ${outputs} Videos` : ' Video'}`}<span style={{fontSize:10,opacity:0.5,marginLeft:8,fontWeight:400}}>⌘↵</span></>
             }
           </button>
@@ -3188,7 +4172,7 @@ export default function Influencers() {
   const location = useLocation()
   const navigate = useNavigate()
   const [selectedId,setSelectedId]=useState(null)
-  const [studioTab,setStudioTab]=useState('influencer')
+  const [studioTab,setStudioTab]=useState(() => localStorage.getItem('inf_studio_tab') || 'influencer')
   const [activeTab,setActiveTab]=useState('Overview')
   const [showNew,setShowNew]=useState(false)
   const [lightbox,setLightbox]=useState(null)
@@ -3196,8 +4180,38 @@ export default function Influencers() {
   const [renameId,setRenameId]=useState(null)
   const [renameVal,setRenameVal]=useState('')
   const [mobileView,setMobileView]=useState('list')
+  const [sidebarCollapsed,setSidebarCollapsed]=useState(()=>localStorage.getItem('inf_sidebar_collapsed')==='1')
+  const [sidebarWidth,setSidebarWidth]=useState(()=>Number(localStorage.getItem('inf_sidebar_width'))||216)
+  const sidebarWidthRef=useRef(Number(localStorage.getItem('inf_sidebar_width'))||216)
+  const asideRef=useRef()
+  const isDragging=useRef(false)
+  const dragStartX=useRef(0)
+  const dragStartW=useRef(0)
   const isMobile=useMobile()
   const tabSecRef=useRef()
+  const [scriptsHighlightId,setScriptsHighlightId]=useState(null)
+  const hasNavigatedToScripts=useRef(false)
+
+  // Resize drag handlers — pure DOM during drag, sync to React on mouseup
+  useEffect(()=>{
+    function onMove(e){
+      if(!isDragging.current) return
+      const w=Math.max(160,Math.min(420,dragStartW.current+(e.clientX-dragStartX.current)))
+      sidebarWidthRef.current=w
+      if(asideRef.current) asideRef.current.style.width=w+'px'
+    }
+    function onUp(){
+      if(!isDragging.current) return
+      isDragging.current=false
+      document.body.style.cursor=''
+      document.body.style.userSelect=''
+      setSidebarWidth(sidebarWidthRef.current)
+      localStorage.setItem('inf_sidebar_width',String(Math.round(sidebarWidthRef.current)))
+    }
+    window.addEventListener('mousemove',onMove)
+    window.addEventListener('mouseup',onUp)
+    return()=>{window.removeEventListener('mousemove',onMove);window.removeEventListener('mouseup',onUp)}
+  },[])
 
   // Bulletproof influencer resolution — three-level fallback, never null if any exist
   const influencer = useMemo(() => {
@@ -3219,7 +4233,7 @@ export default function Influencers() {
   const pct=influencer?completeness(influencer):0
 
   // Reset to Influencer Studio when switching influencers
-  useEffect(() => { setStudioTab('influencer') }, [influencer?.id]) // eslint-disable-line
+  useEffect(() => { setStudioTab('influencer'); setScriptsHighlightId(null); hasNavigatedToScripts.current=false }, [influencer?.id]) // eslint-disable-line
 
   const topImages=influencer?[influencer.mainImage,influencer.characterSheetImage,influencer.closeUpImage1,influencer.closeUpImage2].filter(Boolean):[]
 
@@ -3241,6 +4255,16 @@ export default function Influencers() {
   }
 
   function upd(id,updates){ setInfluencers(prev=>prev.map(i=>i.id===id?{...i,...updates}:i)) }
+
+  function handleSaveToScripts(scriptId) {
+    if (hasNavigatedToScripts.current) return
+    hasNavigatedToScripts.current = true
+    setStudioTab('influencer')
+    localStorage.setItem('inf_studio_tab','influencer')
+    setActiveTab('Scripts')
+    setScriptsHighlightId(scriptId)
+    setTimeout(() => tabSecRef.current?.scrollIntoView({ behavior:'smooth', block:'start' }), 120)
+  }
 
   function dup(id) {
     const src=influencers.find(i=>i.id===id); if(!src) return
@@ -3280,13 +4304,24 @@ export default function Influencers() {
       )}
 
       {/* ── Dark sidebar — hidden on mobile when viewing detail */}
-      {(!isMobile || mobileView==='list') && <aside style={{width:isMobile?'100%':216,flexShrink:0,background:SD.bg,borderRight:`1px solid ${SD.border}`,display:'flex',flexDirection:'column',overflow:'hidden'}}>
-        <div style={{padding:'16px 16px 8px',display:'flex',alignItems:'center',justifyContent:'space-between',borderBottom:`1px solid ${SD.border}`}}>
+      {(!isMobile || mobileView==='list') && <aside ref={asideRef} style={{
+        width: isMobile?'100%': sidebarCollapsed?0:sidebarWidth,
+        flexShrink:0, background:SD.bg,
+        display:'flex', flexDirection:'column', overflow:'hidden',
+        transition: sidebarCollapsed?'width 0.25s ease':'none',
+      }}>
+        <div style={{padding:'16px 16px 8px',display:'flex',alignItems:'center',justifyContent:'space-between',borderBottom:`1px solid ${SD.border}`,minWidth:160}}>
           <span style={{fontSize:11,fontWeight:700,color:SD.dim,textTransform:'uppercase',letterSpacing:'0.6px'}}>Influencers</span>
-          <button onClick={()=>setShowNew(true)} style={{width:26,height:26,borderRadius:7,background:'rgba(255,255,255,0.12)',color:SD.text,fontSize:16,display:'flex',alignItems:'center',justifyContent:'center',transition:'background 0.15s'}}
-            onMouseEnter={e=>{e.currentTarget.style.background='rgba(255,255,255,0.2)'}}
-            onMouseLeave={e=>{e.currentTarget.style.background='rgba(255,255,255,0.12)'}}
-          >+</button>
+          <div style={{display:'flex',gap:5,alignItems:'center'}}>
+            <button onClick={()=>setShowNew(true)} style={{width:26,height:26,borderRadius:7,background:'rgba(255,255,255,0.12)',color:SD.text,fontSize:16,display:'flex',alignItems:'center',justifyContent:'center',transition:'background 0.15s'}}
+              onMouseEnter={e=>{e.currentTarget.style.background='rgba(255,255,255,0.2)'}}
+              onMouseLeave={e=>{e.currentTarget.style.background='rgba(255,255,255,0.12)'}}
+            >+</button>
+            <button onClick={()=>{setSidebarCollapsed(true);localStorage.setItem('inf_sidebar_collapsed','1')}} title="Collapse sidebar" style={{width:26,height:26,borderRadius:7,background:'rgba(255,255,255,0.08)',color:SD.dim,fontSize:14,display:'flex',alignItems:'center',justifyContent:'center',transition:'background 0.15s'}}
+              onMouseEnter={e=>{e.currentTarget.style.background='rgba(255,255,255,0.15)'}}
+              onMouseLeave={e=>{e.currentTarget.style.background='rgba(255,255,255,0.08)'}}
+            >‹</button>
+          </div>
         </div>
 
         <div className="dark-scroll" style={{flex:1,overflowY:'auto',padding:'6px 8px'}}>
@@ -3345,6 +4380,40 @@ export default function Influencers() {
         </div>
       </aside>}
 
+      {/* ── Resize handle ── */}
+      {!isMobile && !sidebarCollapsed && (
+        <div
+          onMouseDown={e=>{
+            e.preventDefault()
+            isDragging.current=true
+            dragStartX.current=e.clientX
+            dragStartW.current=sidebarWidthRef.current
+            document.body.style.cursor='ew-resize'
+            document.body.style.userSelect='none'
+          }}
+          onMouseEnter={e=>{
+            e.currentTarget.querySelector('span').style.background='rgba(139,92,246,0.7)'
+            e.currentTarget.querySelector('span').style.width='3px'
+          }}
+          onMouseLeave={e=>{
+            if(!isDragging.current){
+              e.currentTarget.querySelector('span').style.background=SD.border
+              e.currentTarget.querySelector('span').style.width='1px'
+            }
+          }}
+          style={{
+            width:8, flexShrink:0, cursor:'ew-resize', position:'relative', zIndex:10,
+            display:'flex', alignItems:'stretch', justifyContent:'center',
+          }}
+        >
+          <span style={{
+            display:'block', width:'1px', background:SD.border,
+            transition:'background 0.15s, width 0.15s',
+            pointerEvents:'none',
+          }}/>
+        </div>
+      )}
+
       {/* ── Main — hidden on mobile when viewing list */}
       {(!isMobile || mobileView==='detail') && (influencer ? (
         <main style={{flex:1,overflow:'auto',padding:isMobile?'14px 16px':'20px 24px',display:'flex',flexDirection:'column',gap:14,backgroundImage:'radial-gradient(ellipse at 75% 0%, rgba(0,113,227,0.04) 0%, transparent 55%)'}}>
@@ -3357,26 +4426,40 @@ export default function Influencers() {
             }}>← All Influencers</button>
           )}
 
-          {/* ── Studio tab switcher */}
-          <div style={{display:'flex',gap:4,padding:4,borderRadius:14,background:'var(--bg-tertiary)',border:'1px solid var(--border-subtle)',alignSelf:'flex-start'}}>
-            <button onClick={()=>setStudioTab('influencer')} style={{
-              padding:'9px 22px',borderRadius:10,fontSize:13,fontWeight:600,border:'none',
-              background: studioTab==='influencer' ? 'var(--surface)' : 'transparent',
-              color: studioTab==='influencer' ? 'var(--text-primary)' : 'var(--text-tertiary)',
-              boxShadow: studioTab==='influencer' ? '0 1px 6px rgba(0,0,0,0.10), 0 0 0 1px var(--border-subtle)' : 'none',
-              transition:'all 0.18s',
-            }}>Influencer Studio</button>
-            <button onClick={()=>setStudioTab('content')} style={{
-              padding:'9px 22px',borderRadius:10,fontSize:13,fontWeight:600,border:'none',
-              background: studioTab==='content' ? 'linear-gradient(135deg,#EC4899,#8B5CF6)' : 'transparent',
-              color: studioTab==='content' ? '#fff' : 'var(--text-tertiary)',
-              boxShadow: studioTab==='content' ? '0 2px 14px rgba(139,92,246,0.35)' : 'none',
-              transition:'all 0.18s',
-            }}>Content Studio</button>
+          {/* ── Studio tab switcher + sidebar toggle */}
+          <div style={{display:'flex',alignItems:'center',gap:8}}>
+            {/* Expand sidebar button — only when collapsed */}
+            {sidebarCollapsed && !isMobile && (
+              <button onClick={()=>{setSidebarCollapsed(false);localStorage.setItem('inf_sidebar_collapsed','0')}} title="Show sidebar" style={{
+                width:34,height:34,borderRadius:10,border:'1.5px solid var(--border)',
+                background:'var(--surface)',color:'var(--text-secondary)',fontSize:15,
+                display:'flex',alignItems:'center',justifyContent:'center',flexShrink:0,
+                transition:'all 0.15s',
+              }}
+                onMouseEnter={e=>{e.currentTarget.style.background='var(--bg-tertiary)'}}
+                onMouseLeave={e=>{e.currentTarget.style.background='var(--surface)'}}
+              >›</button>
+            )}
+            <div style={{display:'flex',gap:4,padding:4,borderRadius:14,background:'var(--bg-tertiary)',border:'1px solid var(--border-subtle)',alignSelf:'flex-start'}}>
+              <button onClick={()=>{ setStudioTab('influencer'); localStorage.setItem('inf_studio_tab','influencer') }} style={{
+                padding:'9px 22px',borderRadius:10,fontSize:13,fontWeight:600,border:'none',
+                background: studioTab==='influencer' ? 'var(--surface)' : 'transparent',
+                color: studioTab==='influencer' ? 'var(--text-primary)' : 'var(--text-tertiary)',
+                boxShadow: studioTab==='influencer' ? '0 1px 6px rgba(0,0,0,0.10), 0 0 0 1px var(--border-subtle)' : 'none',
+                transition:'all 0.18s',
+              }}>Influencer Studio</button>
+              <button onClick={()=>{ setStudioTab('content'); localStorage.setItem('inf_studio_tab','content') }} style={{
+                padding:'9px 22px',borderRadius:10,fontSize:13,fontWeight:600,border:'none',
+                background: studioTab==='content' ? 'linear-gradient(135deg,#EC4899,#8B5CF6)' : 'transparent',
+                color: studioTab==='content' ? '#fff' : 'var(--text-tertiary)',
+                boxShadow: studioTab==='content' ? '0 2px 14px rgba(139,92,246,0.35)' : 'none',
+                transition:'all 0.18s',
+              }}>Content Studio</button>
+            </div>
           </div>
 
           {studioTab==='content' && (
-            <ContentStudio influencer={influencer} onUpdate={v=>upd(influencer.id,v)}/>
+            <ContentStudio influencer={influencer} onUpdate={v=>upd(influencer.id,v)} onSaveToScripts={handleSaveToScripts}/>
           )}
 
           {studioTab==='influencer' && <>
@@ -3471,16 +4554,21 @@ export default function Influencers() {
                 scripts={influencer.scripts??[]}
                 influencerPrompt={influencer.prompt}
                 onChange={s=>upd(influencer.id,{scripts:s})}
+                initialExpanded={scriptsHighlightId}
               />
             )}
-            {activeTab==='Wardrobe' && (
+            {activeTab==='Wardrobe' && (<>
+              <WardrobeGenerator
+                influencer={influencer}
+                onAdd={slot => upd(influencer.id, { wardrobeSlots: [...(influencer.wardrobeSlots??[]), slot] })}
+              />
               <WorldDropSection drops={influencer.wardrobeSlots??[]} onChange={slots=>upd(influencer.id,{wardrobeSlots:slots})}/>
-            )}
+            </>)}
             {activeTab==='Home' && (
-              <MasonryGrid images={influencer.homeImages??[]} onChange={imgs=>upd(influencer.id,{homeImages:imgs})} emptyLabel="Add home / room photos" cols={3}/>
+              <HomeSection slots={influencer.homeSlots??[]} onChange={slots=>upd(influencer.id,{homeSlots:slots})}/>
             )}
             {activeTab==='Brand Deals' && (
-              <ImageGrid images={influencer.brandDealImages??[]} onChange={imgs=>upd(influencer.id,{brandDealImages:imgs})} emptyLabel="Add brand" columns={4}/>
+              <BrandDealSection deals={influencer.brandDeals??[]} onChange={deals=>upd(influencer.id,{brandDeals:deals})}/>
             )}
 
           </Sec></div>

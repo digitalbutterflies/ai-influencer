@@ -103,7 +103,7 @@ FORMAT: [duration]s / [single continuous shot OR N-cut] / [one-line concept]
 
 SUBJECT: @image_1.
 
-WARDROBE: [Match @image_1 plus anything not visible in the reference]
+WARDROBE: [If Wall Drop selected: "@image_2 is the wardrobe reference — match outfit silhouette, fabric, color, styling exactly. @image_2 controls outfit ONLY — face, hair, skin come exclusively from @image_1, not @image_2." | If no Wall Drop: "As shown in @image_1, consistent throughout."]
 
 PROPS: [Only specific named props — product, object, etc.]
 
@@ -136,13 +136,31 @@ Use `@` not brackets. `@image_1`, `@audio_1`. Never `<<<image_1>>>`. Brackets co
 
 ### Tag assignments
 
+**With Wall Drop selected (wardrobe look pinned):**
+- `@image_1` → identity ONLY — face, bone structure, skin tone, hair. Never wardrobe.
+- `@image_2` → wardrobe reference ONLY — outfit silhouette, fabric, color, styling. Never face.
+- `@image_3` → close-up facial detail (eye color, skin texture, pores)
+- `@image_4` → feature-level accuracy (lip shape, brow arch, skin tone)
+- `@image_5+` → product or prop references
+
+**Without Wall Drop (character sheet at @image_2):**
 - `@image_1` → identity / face / body / wardrobe lock (always)
-- `@image_2` → a specific product or prop
-- `@image_3` → composition reference, style reference, or second product
+- `@image_2` → character sheet — full-body outfit + identity reference
+- `@image_3` → close-up facial detail
+- `@image_4` → feature-level accuracy
+- `@image_5+` → product or prop references
 
 ### Scope-lock every tagged reference
 
 State explicitly what each reference controls — and what it does NOT.
+
+**Wall Drop wardrobe lock (always include when @image_2 is a wardrobe look):**
+
+> *"Match outfit from @image_2 exactly — silhouette, fabric, color, styling, zero variation. Outfit comes from @image_2 only, not @image_1."*
+
+Repeat in both WARDROBE and LOGIC RULE. The model defaults to pulling outfit from @image_1 — you must explicitly redirect it to @image_2.
+
+**Product scope-lock:**
 
 > *"@image_2 contributes ONLY the product shape and label — its background, lighting, color grade, and any person in it do NOT carry over."*
 
@@ -208,6 +226,8 @@ The first is performance direction the model reads. The second is metadata it ig
 ### Pauses and silence
 
 Use `[beat]` for a conversational pause (0.5–1s). Use `...` inside dialogue for mid-sentence pauses that match audio. Use `[breath]` for a visible inhale that restores intimacy. The silence around the line is what makes it feel real.
+
+**Never place `[beat]` after the final line of dialogue.** The conversation ends on the last spoken word — no trailing pause, no action beat, no notation. The model reads silence after the final word naturally; annotating it kills the spontaneous feel.
 
 ### Gesture-during-speech, not gesture-before
 
@@ -281,6 +301,14 @@ When there's an audio file, the audio's length determines the shot's length. Mat
 
 If the audio ends before the visual does, write a closing beat for the silence — held look, half-smile lingering, eyes on lens. Don't leave dead air.
 
+### Closing tail — always end on stillness
+
+Seedance has a known temporal boundary artifact: without a clear end state, the final frames briefly revert to an earlier pose (usually mid-speech). Prevent it by explicitly closing every prompt with:
+
+> *"End cleanly with the character holding a final pose, no talking or lip movement."*
+
+This gives the model a defined still frame to render toward instead of cycling back. Always include it as the last sentence of the ACTION block.
+
 ---
 
 ## THE HOOK — FIRST TWO SECONDS
@@ -321,7 +349,7 @@ FORMAT: [dur]s / single continuous shot / direct address — [topic or product]
 
 SUBJECT: @image_1.
 
-WARDROBE: As shown in @image_1.
+WARDROBE: Match outfit from @image_2 exactly — silhouette, fabric, color, styling, zero variation. Outfit comes from @image_2 only, not @image_1.
 
 ENVIRONMENT: [Specific room], [time of day], [one sensory detail].
 
@@ -705,6 +733,12 @@ Every prompt must include this in LOGIC RULE:
 Face of @image_1 is fixed and consistent throughout — same bone structure,
 eye color, skin tone, jawline, nose. Zero drift. Only one @image_1 in frame
 at any time. Wardrobe identical across all shots.
+```
+
+**When Wall Drop is selected (@image_2 = wardrobe look), add:**
+
+```
+Outfit matches @image_2 throughout — do not take outfit from @image_1.
 ```
 
 For a continuous oner, add:
