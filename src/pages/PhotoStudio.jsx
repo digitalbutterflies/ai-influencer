@@ -620,7 +620,10 @@ export default function PhotoStudioPanel({ influencer, onGoToWardrobe, onUseAsSt
     }
     setHistory(prev => {
       const next = [item, ...prev].slice(0, MAX_HISTORY)
-      try { localStorage.setItem(HISTORY_KEY, JSON.stringify(next)) } catch {}
+      try {
+        localStorage.setItem(HISTORY_KEY, JSON.stringify(next))
+        window.dispatchEvent(new CustomEvent('photo_studio_history_updated'))
+      } catch {}
       return next
     })
   }
@@ -938,15 +941,15 @@ export default function PhotoStudioPanel({ influencer, onGoToWardrobe, onUseAsSt
       {expandedImg && (
         <div
           onClick={() => setExpandedImg(null)}
-          style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.93)', zIndex: 9999, display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+          style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.93)', zIndex: 9999, display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'zoom-out' }}
         >
-          <img src={expandedImg} alt="" onClick={e => e.stopPropagation()} style={{ maxWidth: '92vw', maxHeight: '92vh', objectFit: 'contain', borderRadius: 14, boxShadow: '0 32px 80px rgba(0,0,0,0.6)' }} />
-          <div onClick={e => e.stopPropagation()} style={{ position: 'absolute', top: 20, right: 20, display: 'flex', gap: 8 }}>
+          <button onClick={() => setExpandedImg(null)} style={{ position: 'fixed', top: 18, right: 18, width: 36, height: 36, borderRadius: '50%', background: 'rgba(255,255,255,0.14)', color: '#fff', border: 'none', cursor: 'pointer', fontSize: 18, display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1 }}>✕</button>
+          <div onClick={e => e.stopPropagation()} style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 12, cursor: 'default' }}>
+            <img src={expandedImg} alt="" onClick={() => setExpandedImg(null)} style={{ maxWidth: '92vw', maxHeight: '82vh', objectFit: 'contain', borderRadius: 14, boxShadow: '0 32px 80px rgba(0,0,0,0.6)', cursor: 'zoom-out', display: 'block' }} />
             <button
-              onClick={e => { e.stopPropagation(); downloadImage(expandedImg, 'photo.jpg') }}
-              style={{ width: 36, height: 36, borderRadius: '50%', background: 'rgba(255,255,255,0.10)', color: 'rgba(255,255,255,0.7)', border: 'none', cursor: 'pointer', fontSize: 16, display: 'flex', alignItems: 'center', justifyContent: 'center' }}
-            >↓</button>
-            <button onClick={() => setExpandedImg(null)} style={{ width: 36, height: 36, borderRadius: '50%', background: 'rgba(255,255,255,0.14)', color: '#fff', border: 'none', cursor: 'pointer', fontSize: 18, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>✕</button>
+              onClick={() => downloadImage(expandedImg, 'photo.jpg')}
+              style={{ padding: '10px 28px', borderRadius: 980, fontSize: 13, fontWeight: 700, background: 'linear-gradient(135deg,#EC4899,#8B5CF6)', color: '#fff', border: 'none', cursor: 'pointer', fontFamily: 'inherit', boxShadow: '0 4px 20px rgba(139,92,246,0.4)' }}
+            >↓ Download</button>
           </div>
         </div>
       )}
@@ -1560,19 +1563,22 @@ export default function PhotoStudioPanel({ influencer, onGoToWardrobe, onUseAsSt
         <>
         <div style={{
           display: 'flex',
-          flexDirection: aspectRatio === '16:9' ? 'column' : 'row',
+          flexDirection: 'row',
+          flexWrap: 'wrap',
           gap: 10,
-          maxWidth: aspectRatio === '9:16'
-            ? `${(isActivelyGenerating ? lockedCount : currentImgs.length) * 220 + Math.max(0, (isActivelyGenerating ? lockedCount : currentImgs.length) - 1) * 10}px`
-            : '100%',
-          margin: aspectRatio === '9:16' ? '0 auto' : 0,
+          maxWidth: (() => {
+            const n = isActivelyGenerating ? lockedCount : currentImgs.length
+            const w = aspectRatio === '9:16' ? 220 : 340
+            return `${n * w + Math.max(0, n - 1) * 10}px`
+          })(),
+          margin: '0 auto',
           width: '100%',
         }}>
           {Array.from({ length: isActivelyGenerating ? lockedCount : currentImgs.length }, (_, i) => {
             const url = currentImgs[i]
             const isReady = !!url
             return (
-              <div key={i} style={{
+              <div key={i} onClick={() => isReady && setExpandedImg(url)} style={{
                 flex: 1, minWidth: 0,
                 borderRadius: 12, overflow: 'hidden',
                 aspectRatio: aspectRatio.replace(':', '/'),
@@ -1580,6 +1586,7 @@ export default function PhotoStudioPanel({ influencer, onGoToWardrobe, onUseAsSt
                 background: isReady ? 'var(--bg-tertiary)' : 'linear-gradient(160deg,#0f0720 0%,#1a0d35 55%,#0d0820 100%)',
                 border: isReady ? 'none' : '1.5px solid rgba(139,92,246,0.22)',
                 display: 'flex', alignItems: 'center', justifyContent: 'center',
+                cursor: isReady ? 'zoom-in' : 'default',
               }}>
                 {isReady ? (
                   <>

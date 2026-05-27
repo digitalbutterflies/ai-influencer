@@ -145,11 +145,15 @@ function accentText(hex) {
 
 function completeness(inf) {
   const c = [
-    inf.name?.trim(), inf.gender, inf.mainImage,
-    inf.backstory?.trim(), inf.niche, inf.audience?.trim(), inf.voice?.trim(),
-    inf.wardrobeSlots?.some(s => s.image), inf.homeImages?.length > 0,
-    inf.hobbies?.trim(), inf.palette?.length > 0, inf.dreamBrands?.trim(),
-    inf.clothingStyle?.trim(), inf.location?.trim(),
+    inf.age?.toString().trim(),
+    inf.niche,
+    inf.location?.trim(),
+    inf.backstory?.trim(),
+    inf.audience?.trim(),
+    inf.physicalDesc?.trim(),
+    inf.hobbies?.trim(),
+    inf.clothingStyle?.trim(),
+    inf.dreamBrands?.trim(),
   ]
   return Math.round(c.filter(Boolean).length / c.length * 100)
 }
@@ -366,9 +370,17 @@ function CharacterSheetSlot({ influencer, onSave, onLightbox }) {
   const [elapsed, setElapsed] = useState(0)
   const [err, setErr] = useState(null)
   const [hovered, setHovered] = useState(false)
+  const [dragOver, setDragOver] = useState(false)
   const fileRef = useRef()
   const cancelRef = useRef(false)
   const value = influencer.characterSheetImage
+
+  function handleFileDrop(file) {
+    if (!file || !file.type.startsWith('image/')) return
+    const r = new FileReader()
+    r.onload = ev => compressImage(ev.target.result).then(v => { onSave(v); setOpen(false) }).catch(console.error)
+    r.readAsDataURL(file)
+  }
 
   useEffect(() => {
     if (!loading) { setElapsed(0); return }
@@ -429,10 +441,13 @@ function CharacterSheetSlot({ influencer, onSave, onLightbox }) {
     <div>
       {/* Image slot */}
       <div style={{position:'relative',width:'100%',aspectRatio:'3/4',borderRadius:10,overflow:'hidden',
-        boxShadow: loading ? '0 0 0 1.5px rgba(139,92,246,0.5), 0 0 18px rgba(139,92,246,0.18)' : 'none',
+        boxShadow: dragOver ? '0 0 0 2px #8B5CF6, 0 0 18px rgba(139,92,246,0.35)' : loading ? '0 0 0 1.5px rgba(139,92,246,0.5), 0 0 18px rgba(139,92,246,0.18)' : 'none',
         transition:'box-shadow 0.3s',
       }}
-        onMouseEnter={()=>setHovered(true)} onMouseLeave={()=>setHovered(false)}>
+        onMouseEnter={()=>setHovered(true)} onMouseLeave={()=>setHovered(false)}
+        onDragOver={e => { e.preventDefault(); setDragOver(true) }}
+        onDragLeave={() => setDragOver(false)}
+        onDrop={e => { e.preventDefault(); setDragOver(false); handleFileDrop(e.dataTransfer.files[0]) }}>
         {loading && <GenLoadingOverlay elapsed={elapsed} onCancel={cancelGeneration}/>}
         {value ? (
           <>
@@ -557,9 +572,17 @@ function CloseUpSlot({ influencer, imageKey, label, onSave, onLightbox, promptFn
   const [elapsed, setElapsed] = useState(0)
   const [err, setErr] = useState(null)
   const [hovered, setHovered] = useState(false)
+  const [dragOver, setDragOver] = useState(false)
   const fileRef = useRef()
   const cancelRef = useRef(false)
   const value = influencer[imageKey]
+
+  function handleFileDrop(file) {
+    if (!file || !file.type.startsWith('image/')) return
+    const r = new FileReader()
+    r.onload = ev => compressImage(ev.target.result).then(onSave).catch(console.error)
+    r.readAsDataURL(file)
+  }
 
   useEffect(() => {
     if (!loading) { setElapsed(0); return }
@@ -623,13 +646,16 @@ function CloseUpSlot({ influencer, imageKey, label, onSave, onLightbox, promptFn
       <div
         style={{
           position:'relative', width:'100%', aspectRatio:'3/2', borderRadius:10, overflow:'hidden',
-          boxShadow: loading ? '0 0 0 1.5px rgba(139,92,246,0.5), 0 0 18px rgba(139,92,246,0.18)' : 'none',
+          boxShadow: dragOver ? '0 0 0 2px #8B5CF6, 0 0 18px rgba(139,92,246,0.35)' : loading ? '0 0 0 1.5px rgba(139,92,246,0.5), 0 0 18px rgba(139,92,246,0.18)' : 'none',
           transition:'box-shadow 0.3s',
         }}
         onMouseEnter={() => setHovered(true)}
         onMouseLeave={() => setHovered(false)}
+        onDragOver={e => { e.preventDefault(); setDragOver(true) }}
+        onDragLeave={() => setDragOver(false)}
+        onDrop={e => { e.preventDefault(); setDragOver(false); handleFileDrop(e.dataTransfer.files[0]) }}
       >
-        {loading && <GenLoadingOverlay elapsed={elapsed} onCancel={cancelGeneration}/>}
+        {loading && <GenLoadingOverlay elapsed={elapsed} onCancel={cancelGeneration} maxLabel="6 min"/>}
         {value ? (
           <>
             <img
@@ -734,7 +760,15 @@ function MainImageSlot({ influencer, onChange, onLightbox }) {
   const [loading, setLoading] = useState(false)
   const [elapsed, setElapsed] = useState(0)
   const [hovered, setHovered] = useState(false)
+  const [dragOver, setDragOver] = useState(false)
   const value = influencer.mainImage
+
+  function handleFileDrop(file) {
+    if (!file || !file.type.startsWith('image/')) return
+    const r = new FileReader()
+    r.onload = ev => compressImage(ev.target.result).then(onChange).catch(console.error)
+    r.readAsDataURL(file)
+  }
 
   useEffect(() => {
     if (!loading) { setElapsed(0); return }
@@ -781,11 +815,14 @@ function MainImageSlot({ influencer, onChange, onLightbox }) {
       <div
         style={{
           position: 'relative', width: '100%', aspectRatio: '3/4', borderRadius: 10, overflow: 'hidden',
-          boxShadow: loading ? '0 0 0 1.5px rgba(139,92,246,0.5), 0 0 18px rgba(139,92,246,0.18)' : 'none',
+          boxShadow: dragOver ? '0 0 0 2px #8B5CF6, 0 0 18px rgba(139,92,246,0.35)' : loading ? '0 0 0 1.5px rgba(139,92,246,0.5), 0 0 18px rgba(139,92,246,0.18)' : 'none',
           transition: 'box-shadow 0.3s',
         }}
         onMouseEnter={() => setHovered(true)}
         onMouseLeave={() => setHovered(false)}
+        onDragOver={e => { e.preventDefault(); setDragOver(true) }}
+        onDragLeave={() => setDragOver(false)}
+        onDrop={e => { e.preventDefault(); setDragOver(false); handleFileDrop(e.dataTransfer.files[0]) }}
       >
         {loading && <GenLoadingOverlay elapsed={elapsed} maxLabel="5 min 30 sec" />}
         {value ? (
@@ -1656,7 +1693,7 @@ function WardrobeGenerator({ influencer, onAdd }) {
     return () => clearInterval(timer)
   }, [generating])
 
-  const refImage = influencer.mainImage || null
+  const refImage = influencer.characterSheetImage || null
 
   // Resume any generation that was running when the user navigated away
   useEffect(() => {
@@ -1838,7 +1875,7 @@ function WardrobeGenerator({ influencer, onAdd }) {
 
         {!refImage && (
           <div style={{ fontSize: 12, color: 'var(--text-tertiary)', marginTop: 14, padding: '9px 12px', background: 'var(--bg-tertiary)', borderRadius: 8 }}>
-            No main image — add one to the profile first.
+            No character sheet — generate one in the Overview tab first.
           </div>
         )}
         {error && <div style={{ fontSize: 12, color: '#FF3B30', marginTop: 10 }}>{error}</div>}
@@ -3395,6 +3432,20 @@ function HistoryTab({ influencer, onUpdate, onReuseSettings }) {
       )
     } catch {}
     setSelected(new Set())
+  }, [influencer.id])
+
+  // Re-read when PhotoStudio adds a new entry in the same browser tab
+  useEffect(() => {
+    function onUpdate() {
+      try {
+        setPhotoEntries(
+          JSON.parse(localStorage.getItem(PHOTO_STUDIO_HISTORY_KEY) || '[]')
+            .filter(h => h.influencerId === influencer.id)
+        )
+      } catch {}
+    }
+    window.addEventListener('photo_studio_history_updated', onUpdate)
+    return () => window.removeEventListener('photo_studio_history_updated', onUpdate)
   }, [influencer.id])
 
   // Content Studio — only videos from generationHistory
@@ -5199,7 +5250,7 @@ ${shotsWithBeats.join('\n\n')}`
           fontSize:13,color:'#FF3B30',lineHeight:1.5,
         }}>
           <strong>Generation failed:</strong> {genError}
-          {/session|expired|reconnect|timed out/i.test(genError) && (
+          {/session|expired|reconnect|timed out|copyrighted|protected likeness/i.test(genError) && (
             <span style={{marginLeft:8,fontWeight:600}}>→ Go to Settings and reconnect Higgsfield.</span>
           )}
         </div>
@@ -5266,10 +5317,13 @@ ${shotsWithBeats.join('\n\n')}`
           {/* Video cards */}
           <div style={{
             display:'flex',
-            flexDirection: aspect==='16:9' ? 'column' : 'row',
+            flexDirection:'row',
+            flexWrap:'wrap',
             gap:10,
-            maxWidth: aspect==='9:16' ? `${lockedOutputs * 220 + Math.max(0, lockedOutputs - 1) * 10}px` : '100%',
-            margin: aspect==='9:16' ? '0 auto' : 0,
+            maxWidth: aspect==='9:16'
+              ? `${lockedOutputs * 220 + Math.max(0, lockedOutputs - 1) * 10}px`
+              : `${lockedOutputs * 340 + Math.max(0, lockedOutputs - 1) * 10}px`,
+            margin:'0 auto',
             width:'100%',
           }}>
             {Array.from({length: generating ? lockedOutputs : genResults.length}, (_,i) => {
@@ -5334,45 +5388,31 @@ ${shotsWithBeats.join('\n\n')}`
                       </div>
                     </>
                   ) : (
-                    /* Loading card */
+                    /* Loading card — matches Photo Studio style */
                     <div style={{
                       aspectRatio: aspect==='9:16' ? '9/16' : '16/9',
-                      background:'linear-gradient(135deg,rgba(139,92,246,0.08) 0%,rgba(236,72,153,0.06) 100%)',
-                      border:'1.5px solid rgba(139,92,246,0.2)',
+                      background:'var(--bg-tertiary)',
+                      border:'1.5px solid var(--border)',
                       borderRadius:14,
                       display:'flex',flexDirection:'column',
                       alignItems:'center',justifyContent:'center',
-                      gap:14,padding:20,
-                      position:'relative',overflow:'hidden',
+                      gap:10,padding:16,
                     }}>
-                      <style>{`@keyframes vidPulse{0%,100%{opacity:0.5;transform:scale(1)}50%{opacity:1;transform:scale(1.08)}}@keyframes vidShimmer{0%{background-position:-200% 0}100%{background-position:200% 0}}`}</style>
-                      {/* Pulsing icon */}
-                      <div style={{
-                        width:52,height:52,borderRadius:16,
-                        background:'linear-gradient(135deg,rgba(139,92,246,0.18),rgba(236,72,153,0.18))',
-                        border:'1.5px solid rgba(139,92,246,0.3)',
-                        display:'flex',alignItems:'center',justifyContent:'center',
-                        fontSize:22,
-                        animation:'vidPulse 2s ease-in-out infinite',
-                      }}>🎬</div>
-                      <div style={{textAlign:'center'}}>
-                        <div style={{fontSize:13,fontWeight:700,color:'var(--text-primary)',marginBottom:3}}>
-                          {lockedOutputs > 1 ? `Generating ${i+1} of ${lockedOutputs}` : 'Generating'}
-                        </div>
-                        <div style={{fontSize:11,color:'var(--text-tertiary)',fontVariantNumeric:'tabular-nums'}}>{fmtElapsed(elapsed)}</div>
+                      <div style={{fontSize:12,fontWeight:600,color:'var(--text-primary)',textAlign:'center'}}>
+                        {lockedOutputs > 1 ? `Generating ${i+1} of ${lockedOutputs}…` : 'Generating…'}
                       </div>
-                      {/* Progress bar */}
-                      <div style={{width:'72%',height:4,background:'rgba(139,92,246,0.12)',borderRadius:2,overflow:'hidden'}}>
+                      <div style={{width:'80%',height:3,background:'var(--border)',borderRadius:2,overflow:'hidden'}}>
                         <div style={{
                           height:'100%',
-                          width:`${Math.max(4, Math.round(displayProgress))}%`,
+                          width:`${Math.round(displayProgress)}%`,
                           background:'linear-gradient(90deg,#EC4899,#8B5CF6)',
                           borderRadius:2,
                           transition:'width 0.4s linear',
-                          boxShadow:'0 0 8px rgba(139,92,246,0.6)',
                         }}/>
                       </div>
-                      <div style={{fontSize:11,color:'var(--text-tertiary)'}}>{Math.round(displayProgress)}%</div>
+                      <div style={{fontSize:11,color:'var(--text-secondary)',fontVariantNumeric:'tabular-nums'}}>
+                        {fmtElapsed(elapsed)}
+                      </div>
                     </div>
                   )}
                 </div>
@@ -6298,9 +6338,9 @@ export default function Influencers() {
             {activeTab==='Home' && (
               <HomeSection slots={influencer.homeSlots??[]} onChange={slots=>upd(influencer.id,{homeSlots:slots})}/>
             )}
-            {activeTab==='Brand Deals' && (
+            <div style={{ display: activeTab==='Brand Deals' ? 'block' : 'none' }}>
               <BrandDealSection deals={influencer.brandDeals??[]} onChange={deals=>upd(influencer.id,{brandDeals:deals})}/>
-            )}
+            </div>
             {activeTab==='History' && (
               <HistoryTab influencer={influencer} onUpdate={v=>upd(influencer.id,v)}
                 onReuseSettings={(seg)=>{ if (seg === 'videos') { setStudioTab('content'); localStorage.setItem('inf_studio_tab','content'); setVideoRestoreKey(k => k+1) } else { setStudioTab('photo'); localStorage.setItem('inf_studio_tab','photo'); setPhotoRestoreKey(k => k+1) } }}/>
