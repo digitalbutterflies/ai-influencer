@@ -5,20 +5,12 @@
 
 WHAT YOU NEED (one-time)
 --------------------------------------------------
-1. Antigravity IDE
+Just Antigravity IDE — it includes everything.
    → Download at: https://antigravity.dev
    → Install it like any normal app
 
-2. Node.js — check if you already have it first:
-   → Open Antigravity, open the built-in terminal:
-        Menu → Terminal → New Terminal
-   → Type this and press Enter:
-        node -v
-   → See a version number like "v20.11.0"? You're good.
-   → See an error? Go to https://nodejs.org, click "LTS",
-     install it like a normal app, then come back here.
-
-That's it. Everything else runs inside Antigravity.
+Node.js comes bundled with Antigravity.
+No separate installs needed.
 
 
 HOW TO GET THE PROJECT
@@ -73,8 +65,7 @@ the terminal running inside it is what powers the server.
 
 NOTES
 --------------------------------------------------
-- Node.js is a one-time install. After that, everything
-  stays inside Antigravity — no other tools needed.
+- Node.js is bundled inside Antigravity — no separate install needed.
 - npm install only needs to run once (or after updates).
 - All your data is saved in your browser locally.
   Clearing browser data will reset everything.
