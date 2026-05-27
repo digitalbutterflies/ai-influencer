@@ -44,6 +44,10 @@ const ALL_IMGS = [
   '/inf/i16.png', '/inf/i17.png', '/inf/i18.png', '/inf/i19.png', '/inf/i20.png',
   '/inf/i21.png', '/inf/i22.png', '/inf/i23.png', '/inf/i24.png', '/inf/i25.png',
   '/inf/i26.png', '/inf/i27.png', '/inf/i28.png', '/inf/i29.png',
+  '/inf/i30.png', '/inf/i31.png', '/inf/i32.png', '/inf/i33.png', '/inf/i34.png',
+  '/inf/i35.png', '/inf/i36.png', '/inf/i37.png', '/inf/i38.png', '/inf/i39.png',
+  '/inf/i40.png', '/inf/i41.png',
+  '/inf/i42.png', '/inf/i43.png', '/inf/i44.png', '/inf/i45.png', '/inf/i46.png',
 ]
 
 // 6 card slots — position, rotation, size, float timing

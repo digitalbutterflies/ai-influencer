@@ -122,7 +122,17 @@
       "Bash(cp \"/Users/alec/Downloads/hf_20260525_175259_bd481ebc-7a1f-4842-8a22-f61d7b99e253.mp4\" \"/Users/alec/Desktop/Ai Influencer/public/camila/videos/v1.mp4\")",
       "Bash(gh auth *)",
       "Bash(npx vercel *)",
-      "Bash(gh run *)"
+      "Bash(gh run *)",
+      "Bash(cp \"/Users/alec/Downloads/hf_20260527_043642_cb6f6cf8-42a1-414a-9d90-15df46714341.png\" \"/Users/alec/Desktop/Ai Influencer/public/inf/i30.png\")",
+      "Bash(cp \"/Users/alec/Downloads/hf_20260527_051033_625f9237-21c9-4a98-b197-50aedd91d8a1.png\" \"/Users/alec/Desktop/Ai Influencer/public/inf/i31.png\")",
+      "Bash(cp \"/Users/alec/Downloads/hf_20260527_053213_a039d48b-c1f2-4cbd-897d-530bced24895.png\" \"/Users/alec/Desktop/Ai Influencer/public/inf/i32.png\")",
+      "Bash(cp \"/Users/alec/Downloads/hf_20260527_054214_0caa446f-b063-4dee-a0d9-d379b3a73858.png\" \"/Users/alec/Desktop/Ai Influencer/public/inf/i33.png\")",
+      "Bash(cp \"/Users/alec/Downloads/hf_20260527_054746_bb387296-be13-455d-9c25-98257b0d6c9e.png\" \"/Users/alec/Desktop/Ai Influencer/public/inf/i34.png\")",
+      "Bash(cp \"/Users/alec/Downloads/hf_20260526_102441_f96f7c7b-4cc1-4e0f-bd75-3088038c69f8.png\" \"/Users/alec/Desktop/Ai Influencer/public/inf/i42.png\")",
+      "Bash(cp \"/Users/alec/Downloads/hf_20260526_101651_39cb19bb-94df-4f47-b5cf-c71d4ac6e478.png\" \"/Users/alec/Desktop/Ai Influencer/public/inf/i43.png\")",
+      "Bash(cp \"/Users/alec/Downloads/hf_20260526_102733_4b1aeb26-ba4e-4e1b-a76d-357d9cbe26a4.png\" \"/Users/alec/Desktop/Ai Influencer/public/inf/i44.png\")",
+      "Bash(cp \"/Users/alec/Downloads/hf_20260526_054614_851434bd-ba44-41ad-bab0-4bc2586baacc.png\" \"/Users/alec/Desktop/Ai Influencer/public/inf/i45.png\")",
+      "Bash(cp \"/Users/alec/Downloads/hf_20260526_075846_9f832513-1866-456a-be9d-0ec3e1b609fa.png\" \"/Users/alec/Desktop/Ai Influencer/public/inf/i46.png\")"
     ]
   }
 }
