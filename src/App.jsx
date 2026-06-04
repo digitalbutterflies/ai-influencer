@@ -1,9 +1,9 @@
 import { useState, useEffect } from 'react'
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
-import { Analytics } from '@vercel/analytics/react'
 import { ThemeProvider, useTheme } from './context/theme'
 import { StoreProvider } from './store'
 import { silentRefreshHFToken } from './utils/higgsfieldAuth'
+import { handleLegacyStorageMigration } from './utils/legacyStorageMigration'
 import Nav from './components/Nav'
 import Landing from './pages/Landing'
 import Influencers from './pages/Influencers'
@@ -52,6 +52,7 @@ function FeedbackButton() {
 
 export default function App() {
   useEffect(() => {
+    handleLegacyStorageMigration()
     silentRefreshHFToken()
     function onVisible() {
       if (document.visibilityState === 'visible') silentRefreshHFToken()
@@ -76,7 +77,6 @@ export default function App() {
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
       <FeedbackButton />
-      <Analytics />
     </BrowserRouter>
     </StoreProvider>
     </ThemeProvider>

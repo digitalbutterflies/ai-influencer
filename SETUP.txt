@@ -1,73 +1,65 @@
 ====================================================
-  AI INFLUENCER STUDIO — LOCAL SETUP GUIDE
+  AI INFLUENCER STUDIO - LOCAL SETUP GUIDE
 ====================================================
 
 
-WHAT YOU NEED (one-time)
+WHAT YOU NEED
 --------------------------------------------------
-Just Antigravity IDE — it includes everything.
-   → Download at: https://antigravity.dev
-   → Install it like any normal app
-
-Node.js comes bundled with Antigravity.
-No separate installs needed.
+- Node.js 18 or newer
+- Codex Desktop or a regular PowerShell terminal
+- A Higgsfield account for image and video generation
 
 
 HOW TO GET THE PROJECT
 --------------------------------------------------
-1. Go to: https://github.com/DaanKieft/ai-influencer
-2. Click the green "Code" button → "Download ZIP"
-3. Unzip it somewhere easy (Desktop or Documents)
+1. Clone the repository or download the ZIP.
+2. Open the project folder in Codex Desktop or PowerShell.
 
 
-HOW TO RUN IT
+HOW TO RUN IT LOCALLY
 --------------------------------------------------
-1. Open Antigravity IDE
-2. File → Open Folder → select the unzipped project folder
-3. Open the terminal: Menu → Terminal → New Terminal
-4. Type this and press Enter:
+1. Install dependencies:
 
       npm install
 
-   Wait for it to finish (1–2 minutes the first time only)
-
-5. Then type this and press Enter:
+2. Start the Vite app:
 
       npm run dev
 
-6. Open your browser and go to:
+3. Open your browser:
 
       http://localhost:5173
 
-Done. The app loads with everything pre-loaded.
 
-
-CONNECTING HIGGSFIELD (to generate images & videos)
+CONNECTING HIGGSFIELD
 --------------------------------------------------
-1. In the app, click the gear icon (top right) → Settings
-2. Click "Connect Higgsfield"
-3. Log in with your Higgsfield account
-4. Done — uses your own Higgsfield credits
+1. In the app, open Settings.
+2. Click "Connect Higgsfield".
+3. Log in with your Higgsfield account.
+4. The app uses your own Higgsfield credits.
 
 
-DAILY USE
+CLOUDFLARE DEPLOYMENT
 --------------------------------------------------
-Starting the app:
-   Open Antigravity → open the terminal → type  npm run dev
-   → go to http://localhost:5173
+1. Check Cloudflare authentication:
 
-Stopping the app:
-   Click the terminal and press Ctrl+C
+      npm run cf:whoami
 
-Keep Antigravity open while using the app —
-the terminal running inside it is what powers the server.
+2. Validate a deployment without publishing:
+
+      npm run deploy:dry-run
+
+3. Deploy the Worker:
+
+      npm run deploy
+
+The Wrangler config builds the Vite app, uploads the static assets from dist,
+and runs API routes through worker/index.js.
 
 
 NOTES
 --------------------------------------------------
-- Node.js is bundled inside Antigravity — no separate install needed.
-- npm install only needs to run once (or after updates).
-- All your data is saved in your browser locally.
-  Clearing browser data will reset everything.
-- The app works offline once loaded.
-  Image/video generation needs internet for Higgsfield.
+- All user data is saved in browser localStorage.
+- Clearing browser data resets the local app data.
+- Image and video generation needs internet access for Higgsfield.
+- Cloudflare Images and Cloudflare Stream are not currently used by the app runtime.

@@ -92,8 +92,8 @@ export async function resumeVideoJob(jobIds, count, onProgress, onPartialResults
   return pollVideoJobs(jobIds, count, onProgress, onPartialResults, isCancelled)
 }
 
-// Direct-to-Higgsfield call — bypasses the Vercel proxy so Higgsfield sees the browser's real
-// IP instead of a Vercel datacenter IP. Used as fallback when the proxy call is IP-blocked.
+// Direct-to-Higgsfield call - bypasses the Worker proxy so Higgsfield sees the browser's real
+// IP instead of a Cloudflare edge IP. Used as fallback when the proxy call is IP-blocked.
 async function mcpPostDirect(body) {
   const token = getHFToken()
   const headers = {

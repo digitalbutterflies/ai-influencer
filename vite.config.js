@@ -1,7 +1,7 @@
 import { defineConfig } from 'vite'
 import react from '@vitejs/plugin-react'
 
-// Local dev search proxy — mirrors api/search.js for Vercel production
+// Local dev search proxy - mirrors the Cloudflare Worker /api/search route
 const searchPlugin = {
   name: 'search-proxy',
   configureServer(server) {
@@ -39,7 +39,7 @@ const searchPlugin = {
   },
 }
 
-// Local dev image proxy — mirrors api/img-proxy.js for Vercel production
+// Local dev image proxy - mirrors the Cloudflare Worker /api/img-proxy route
 const imgProxyPlugin = {
   name: 'img-proxy',
   configureServer(server) {
@@ -65,7 +65,7 @@ const imgProxyPlugin = {
   },
 }
 
-// Local dev Claude proxy — mirrors api/claude.js for Vercel production
+// Local dev Claude proxy - mirrors the Cloudflare Worker /api/claude route
 const claudePlugin = {
   name: 'claude-proxy',
   configureServer(server) {

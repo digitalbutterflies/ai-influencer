@@ -1,30 +1,17 @@
 # AI Influencer Studio
 
 A local-first web app for building, managing, and generating AI influencers.
-React + Vite frontend, Higgsfield for image & video generation, your own
-Higgsfield account, your data lives in your browser.
+React + Vite powers the frontend, Higgsfield handles image and video generation through each user's own Higgsfield account, and all user data stays in browser localStorage.
 
----
+## Quickest Setup With Codex
 
-## Quickest setup — with Claude Code (recommended)
+1. Open this folder in Codex Desktop.
+2. Run `npm install`.
+3. Run `npm run dev`.
+4. Open `http://localhost:5173`.
+5. Go to Settings and connect Higgsfield.
 
-The whole app was built using Claude Code; using it to install is the
-zero-friction path.
-
-1. Install **Claude Code** from [claude.com/claude-code](https://claude.com/claude-code) (use the native installer — no separate Node.js install needed).
-2. Sign in with your Anthropic account.
-3. In Claude Code, paste this prompt:
-
-   > Clone https://github.com/YOUR_USER/ai-influencer to my Desktop, install dependencies, and start the dev server.
-
-4. Open [http://localhost:5173](http://localhost:5173) in Chrome.
-5. Go to **Settings** → **Connect Higgsfield** (uses your own Higgsfield credits).
-
-That's it. To edit anything, just ask Claude Code: *"change the homepage headline,"* *"add a new vibe option,"* etc.
-
----
-
-## Manual setup — if you already use Node.js
+## Manual Setup
 
 ```bash
 git clone https://github.com/YOUR_USER/ai-influencer.git
@@ -33,43 +20,46 @@ npm install
 npm run dev
 ```
 
-Then open [http://localhost:5173](http://localhost:5173).
+Requires Node.js 18 or newer.
 
-**Requires Node.js 18+** (see `package.json` engines).
+## Cloudflare Deployment
 
----
+This app deploys as a Cloudflare Worker with Workers Static Assets.
 
-## Updating
-
-- **Via Claude Code:** *"pull the latest changes."*
-- **Manually:** `git pull && npm install`
-
-Your saved data (influencers, brand deals, inspiration boards) stays in
-browser localStorage and survives updates.
-
----
-
-## Project structure
-
+```bash
+npm run deploy
 ```
+
+The Wrangler config runs `npm run build` before deployment, uploads `dist`, and routes `/api/*` through `worker/index.js`.
+
+Useful Cloudflare commands:
+
+```bash
+npm run cf:whoami
+npm run deploy:dry-run
+```
+
+## Project Structure
+
+```text
 src/
   pages/           Routes: Landing, Influencers, Inspiration, BrandDeals, Create, Settings
   components/      Reusable UI: Nav, ImageGrid, MasonryGrid, Lightbox
-  context/         React contexts (theme)
+  context/         React contexts
   utils/           Higgsfield API, OAuth, prompt builders, image helpers
   store.jsx        localStorage-backed React contexts
-api/               Vercel serverless functions (proxies + image proxy)
+worker/
+  index.js         Cloudflare Worker API routes and proxy logic
 docs/              Prompt engineering reference docs
+wrangler.jsonc     Cloudflare Worker and static asset deployment config
 ```
 
----
+## Runtime Notes
 
-## Deployment (optional)
-   
-The repo is Vercel-ready. Connect the GitHub repo at vercel.com → it
-auto-detects Vite + the `api/` folder and deploys in ~60 seconds. End
-users still bring their own Higgsfield account.
+- `/api/hf/*` proxies allowed Higgsfield MCP and OAuth paths.
+- `/api/img-proxy` streams allowed Higgsfield/OpenAI media downloads.
+- `/api/search` proxies a lightweight Google News RSS search.
+- `/api/claude` proxies Anthropic requests when a user supplies their own `x-api-key`.
+- `/api/health` exposes a minimal Worker health check.
 
----
-
-Made by Dan Kieft.
+Cloudflare Images and Cloudflare Stream are not active runtime dependencies in this app yet. Current media is either local browser data or Higgsfield-hosted output URLs.
