@@ -1,65 +1,100 @@
 # AI Influencer Studio
 
-A local-first web app for building, managing, and generating AI influencers.
-React + Vite powers the frontend, Higgsfield handles image and video generation through each user's own Higgsfield account, and all user data stays in browser localStorage.
+A local-first React + Vite app for building, managing, and generating AI influencers.
+Higgsfield handles image and video generation through each user's own Higgsfield account.
+The app stores user data in browser `localStorage`, not in a central database.
 
-## Quickest Setup With Codex
+## Production
 
-1. Open this folder in Codex Desktop.
-2. Run `npm install`.
-3. Run `npm run dev`.
-4. Open `http://localhost:5173`.
-5. Go to Settings and connect Higgsfield.
+- Primary URL: `https://influencers.2zero.network`
+- Worker URL: `https://ai-influencer.jens-e4b.workers.dev`
+- Health check: `https://influencers.2zero.network/api/health`
+- GitHub repository: `https://github.com/digitalbutterflies/ai-influencer`
 
-## Manual Setup
+## Runtime Architecture
 
-```bash
-git clone https://github.com/YOUR_USER/ai-influencer.git
-cd ai-influencer
+The app runs as a Cloudflare Worker with Workers Static Assets.
+
+```text
+Browser
+  -> Cloudflare Worker route
+    -> Static assets from dist for the React SPA
+    -> worker/index.js for /api/* routes
+      -> Higgsfield MCP and OAuth proxy
+      -> media download proxy
+      -> Google News RSS search proxy
+      -> Anthropic proxy with user-supplied x-api-key
+      -> health endpoint
+```
+
+`wrangler.jsonc` is the source of truth for deployment. It runs `npm run build`, uploads `dist`, uses `not_found_handling: "single-page-application"` for React Router routes, and invokes `worker/index.js` first for `/api/*`.
+
+More detail: [`docs/cloudflare-worker-runbook.md`](docs/cloudflare-worker-runbook.md).
+
+## Local Setup
+
+```powershell
 npm install
 npm run dev
 ```
 
-Requires Node.js 18 or newer.
+Open `http://localhost:5173`.
 
-## Cloudflare Deployment
+## Cloudflare Commands
 
-This app deploys as a Cloudflare Worker with Workers Static Assets.
-
-```bash
+```powershell
+npm run cf:whoami
+npm run build
+npm run deploy:dry-run
 npm run deploy
 ```
 
-The Wrangler config runs `npm run build` before deployment, uploads `dist`, and routes `/api/*` through `worker/index.js`.
+`npm run deploy` builds the Vite app and deploys the Worker plus static assets.
 
-Useful Cloudflare commands:
+## Worker API Routes
 
-```bash
-npm run cf:whoami
-npm run deploy:dry-run
-```
+| Route | Purpose |
+|---|---|
+| `/api/health` | Minimal runtime health response. |
+| `/api/hf/*` | Allows selected Higgsfield OAuth, MCP, and v1 paths. |
+| `/api/img-proxy` | Streams allowlisted Higgsfield/OpenAI media downloads. |
+| `/api/search` | Proxies lightweight Google News RSS search. |
+| `/api/claude` | Proxies Anthropic API requests with a browser-provided `x-api-key`. |
+
+## Data Model
+
+- User-created influencers, boards, brand deals, generated media history, and UI preferences are stored in `localStorage`.
+- Higgsfield OAuth tokens are stored in `localStorage` per browser origin.
+- Moving from `workers.dev` to `influencers.2zero.network` creates a new browser origin, so users must reconnect Higgsfield on the new domain.
+- `src/utils/legacyStorageMigration.js` can copy app data from the old `workers.dev` origin to the production domain without copying Higgsfield or Anthropic credentials.
+
+## Media Status
+
+Cloudflare Images and Cloudflare Stream are not active runtime dependencies yet.
+Current media is either browser-local data, static seed assets from `public/`, or Higgsfield-hosted output URLs.
+
+Do not document generated user media as persisted in Cloudflare Images or Stream until the app stores Cloudflare image IDs or Stream UIDs through a real integration.
 
 ## Project Structure
 
 ```text
 src/
-  pages/           Routes: Landing, Influencers, Inspiration, BrandDeals, Create, Settings
-  components/      Reusable UI: Nav, ImageGrid, MasonryGrid, Lightbox
-  context/         React contexts
-  utils/           Higgsfield API, OAuth, prompt builders, image helpers
-  store.jsx        localStorage-backed React contexts
+  pages/           React routes and feature screens
+  components/      Reusable UI components
+  context/         Theme context
+  utils/           Higgsfield, prompt, media, migration, and helper utilities
+  store.jsx        localStorage-backed influencer store
 worker/
   index.js         Cloudflare Worker API routes and proxy logic
-docs/              Prompt engineering reference docs
-wrangler.jsonc     Cloudflare Worker and static asset deployment config
+docs/
+  cloudflare-worker-runbook.md
+  prompt engineering reference docs
+wrangler.jsonc     Worker, assets, build, observability, and source map config
 ```
 
-## Runtime Notes
+## Notes
 
-- `/api/hf/*` proxies allowed Higgsfield MCP and OAuth paths.
-- `/api/img-proxy` streams allowed Higgsfield/OpenAI media downloads.
-- `/api/search` proxies a lightweight Google News RSS search.
-- `/api/claude` proxies Anthropic requests when a user supplies their own `x-api-key`.
-- `/api/health` exposes a minimal Worker health check.
-
-Cloudflare Images and Cloudflare Stream are not active runtime dependencies in this app yet. Current media is either local browser data or Higgsfield-hosted output URLs.
+- No build-time API keys are required.
+- Do not hardcode secrets.
+- Do not use legacy host-specific API functions.
+- Do not use Cloudflare Images or Stream terminology for current generated media persistence unless that integration is added.

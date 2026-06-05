@@ -779,7 +779,7 @@ function MainImageSlot({ influencer, onChange, onLightbox }) {
   async function regenerate() {
     const params = getCreationParams(influencer.id)
     if (!params) {
-      alert('No creation data found — this influencer was created before regeneration was supported. Try replacing the image manually.')
+      alert('No creation data found — this Futurefluencer was created before regeneration was supported. Try replacing the image manually.')
       return
     }
     setLoading(true)
@@ -1373,7 +1373,7 @@ function ScriptsSection({ scripts=[], influencerPrompt='', onChange, initialExpa
                   <div style={{fontSize:11,fontWeight:700,color:'var(--text-tertiary)',textTransform:'uppercase',letterSpacing:'0.5px'}}>Generation Prompt</div>
                   <div style={{display:'flex',gap:5}}>
                     {influencerPrompt&&(
-                      <button onClick={()=>upd(s.id,'prompt',influencerPrompt)} style={{padding:'3px 9px',borderRadius:6,fontSize:11,border:'1px solid var(--border)',color:'var(--text-secondary)',background:'var(--bg)',cursor:'pointer'}}>Use influencer</button>
+                      <button onClick={()=>upd(s.id,'prompt',influencerPrompt)} style={{padding:'3px 9px',borderRadius:6,fontSize:11,border:'1px solid var(--border)',color:'var(--text-secondary)',background:'var(--bg)',cursor:'pointer'}}>Use Futurefluencer</button>
                     )}
                     <button onClick={()=>copy(s.prompt||'',`p-${s.id}`)} style={{padding:'3px 9px',borderRadius:6,fontSize:11,fontWeight:600,border:'1px solid var(--border)',color:copied===`p-${s.id}`?'#34C759':'var(--text-secondary)',background:'var(--bg)',transition:'color 0.15s',cursor:'pointer'}}>{copied===`p-${s.id}`?'✓ Copied':'Copy'}</button>
                   </div>
@@ -1630,9 +1630,9 @@ const WARDROBE_STYLES_M = [
 const HAIR_PRESETS_F = ['Sleek bun', 'High ponytail', 'Beach waves', 'Blowout', 'Space buns', 'Braids', 'Half-up', 'Curtain bangs', 'Slicked back', 'Natural curls', 'Pixie cut', 'Bob']
 const HAIR_PRESETS_M = ['Low fade', 'Side part', 'Buzz cut', 'Slicked back', 'Textured crop', 'Tousled', 'Undercut', 'Man bun', 'Cornrows', 'Afro', 'Shaved sides', 'French crop']
 
-function buildWardrobePrompt(influencer, { outfit, hair, customText }) {
+function buildWardrobePrompt(influencer, { outfit, hair, customText, referencePieces = [] }) {
   const phys = influencer.physicalDesc ? `The subject: ${influencer.physicalDesc}. ` : ''
-  const identity = `IDENTITY LOCK — replicate exactly from reference: facial bone structure, face shape, jaw, nose bridge and tip, lip shape, eye shape and color, eyebrow arch and thickness, skin tone, skin texture and pores, all freckles, moles, marks, scars, natural asymmetries. Zero facial drift — this must be unmistakably the same person.`
+  const identity = `IDENTITY LOCK - use @image1 only for the person and sheet structure. Replicate exactly from @image1: facial bone structure, face shape, jaw, nose bridge and tip, lip shape, eye shape and color, eyebrow arch and thickness, skin tone, skin texture and pores, all freckles, moles, marks, scars, natural asymmetries. Zero facial drift - this must be unmistakably the same person.`
   const layout = `Output must be the exact same 4-panel character turnaround sheet as the reference image. Single row of four equally sized full-body panels with these labels in clean sans-serif capitals above each: "FRONT VIEW" | "SIDE VIEW" | "BACK VIEW" | "THREE-QUARTER VIEW". Keep identical body poses, stance, arm positions, proportions, and panel layout from the reference. Do NOT change poses, labels, panel structure, background (pure white seamless), or lighting.`
 
   const changeParts = [
@@ -1641,6 +1641,9 @@ function buildWardrobePrompt(influencer, { outfit, hair, customText }) {
     customText?.trim() || '',
   ].filter(Boolean)
   const changes = `Change only: ${changeParts.join('; ') || 'casual stylish outfit, natural hairstyle'}.`
+  const referenceInstructions = referencePieces.length
+    ? `\n\nOutfit reference pieces:\n${referencePieces.map(piece => `${piece.tag} is the ${piece.label} reference. Use only the garment or accessory from ${piece.tag}: match its silhouette, material, color, logo, pattern, sole shape, trim, and proportions exactly. Apply it naturally as worn clothing or an accessory on the body. Do not copy the face, body, pose, background, lighting, camera angle, hands, or unrelated objects from ${piece.tag}.`).join('\n')}`
+    : ''
 
   return `Professional full-body character turnaround sheet. ${phys}Pure white seamless background throughout. Soft neutral studio lighting, perfectly flat and even across all four panels — no shadows, no color cast.
 
@@ -1648,7 +1651,7 @@ ${layout}
 
 ${identity}
 
-${changes}
+${changes}${referenceInstructions}
 
 Photorealistic RAW photograph quality, ultra-sharp micro detail. Shot on Hasselblad X2D 100C.`
 }
@@ -1668,6 +1671,97 @@ function clearWardrobePending(influencerId) {
   try { localStorage.removeItem(`hf_wardrobe_pending_${influencerId}`) } catch {}
 }
 
+const WARDROBE_REFERENCE_PIECES = [
+  { id: 'top', label: 'Top / Hoodie' },
+  { id: 'shoes', label: 'Shoes' },
+  { id: 'accessory', label: 'Accessory' },
+]
+
+function createWardrobeReferencePieces() {
+  return WARDROBE_REFERENCE_PIECES.map(piece => ({ ...piece, image: null }))
+}
+
+function WardrobeReferencePieceCard({ piece, onChange }) {
+  const fileRef = useRef()
+  const [dragOver, setDragOver] = useState(false)
+
+  function handleFile(file) {
+    if (!file || !file.type.startsWith('image/')) return
+    const reader = new FileReader()
+    reader.onload = event => compressImage(event.target.result).then(onChange).catch(console.error)
+    reader.readAsDataURL(file)
+  }
+
+  return (
+    <div
+      style={{
+        minWidth: 0,
+        borderRadius: 10,
+        overflow: 'hidden',
+        border: `1.5px solid ${dragOver ? '#8B5CF6' : piece.image ? 'rgba(139,92,246,0.45)' : 'var(--border)'}`,
+        background: 'var(--bg)',
+      }}
+    >
+      <div
+        onClick={() => fileRef.current?.click()}
+        onDragOver={e => { e.preventDefault(); setDragOver(true) }}
+        onDragLeave={() => setDragOver(false)}
+        onDrop={e => { e.preventDefault(); setDragOver(false); handleFile(e.dataTransfer.files[0]) }}
+        style={{
+          aspectRatio: '4/3',
+          position: 'relative',
+          cursor: 'pointer',
+          background: dragOver ? 'rgba(139,92,246,0.08)' : 'var(--bg-tertiary)',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          overflow: 'hidden',
+        }}
+      >
+        {piece.image ? (
+          <>
+            <img src={piece.image} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }} />
+            <button
+              onClick={e => { e.stopPropagation(); onChange(null) }}
+              style={{
+                position: 'absolute',
+                top: 6,
+                right: 6,
+                width: 22,
+                height: 22,
+                borderRadius: '50%',
+                background: 'rgba(0,0,0,0.58)',
+                color: '#fff',
+                border: '1px solid rgba(255,255,255,0.18)',
+                fontSize: 13,
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                cursor: 'pointer',
+              }}
+            >x</button>
+          </>
+        ) : (
+          <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 5, padding: 10, textAlign: 'center' }}>
+            <span style={{ fontSize: 20, color: 'var(--text-tertiary)', opacity: 0.5 }}>+</span>
+            <span style={{ fontSize: 11, fontWeight: 600, color: 'var(--text-tertiary)', lineHeight: 1.25 }}>Upload reference</span>
+          </div>
+        )}
+        <input
+          ref={fileRef}
+          type="file"
+          accept="image/*"
+          style={{ display: 'none' }}
+          onChange={e => { handleFile(e.target.files[0]); e.target.value = '' }}
+        />
+      </div>
+      <div style={{ padding: '8px 9px', fontSize: 12, fontWeight: 700, color: 'var(--text-primary)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+        {piece.label}
+      </div>
+    </div>
+  )
+}
+
 function WardrobeGenerator({ influencer, onAdd }) {
   const [top, setTop] = useState('')
   const [bottom, setBottom] = useState('')
@@ -1679,6 +1773,7 @@ function WardrobeGenerator({ influencer, onAdd }) {
   const [result, setResult] = useState(null) // { url, name } — waiting to be saved
   const [saveName, setSaveName] = useState('')
   const [lightboxOpen, setLightboxOpen] = useState(false)
+  const [referencePieces, setReferencePieces] = useState(createWardrobeReferencePieces)
   const cancelRef = useRef(false)
   const genStartRef = useRef(null)
 
@@ -1694,6 +1789,7 @@ function WardrobeGenerator({ influencer, onAdd }) {
   }, [generating])
 
   const refImage = influencer.characterSheetImage || null
+  const activeReferencePieces = referencePieces.filter(piece => piece.image)
 
   // Resume any generation that was running when the user navigated away
   useEffect(() => {
@@ -1718,9 +1814,17 @@ function WardrobeGenerator({ influencer, onAdd }) {
       .finally(() => { clearWardrobePending(influencer.id); if (!cancelRef.current) { setGenerating(false); setProgress(0) } })
   }, [influencer.id])
 
+  useEffect(() => {
+    setReferencePieces(createWardrobeReferencePieces())
+  }, [influencer.id])
+
   const canGenerate = refImage && !generating && !result && (
-    customText.trim() || top.trim() || bottom.trim() || hair.trim()
+    customText.trim() || top.trim() || bottom.trim() || hair.trim() || activeReferencePieces.length > 0
   )
+
+  function updateReferencePiece(id, image) {
+    setReferencePieces(prev => prev.map(piece => piece.id === id ? { ...piece, image } : piece))
+  }
 
   function cancelGeneration() {
     cancelRef.current = true
@@ -1735,12 +1839,17 @@ function WardrobeGenerator({ influencer, onAdd }) {
     try {
       const outfitText = [top, bottom].filter(Boolean).join(', ')
       const label = 'Custom Look'
+      const taggedReferencePieces = activeReferencePieces.map((piece, index) => ({
+        ...piece,
+        tag: `@image${index + 2}`,
+      }))
       const prompt = buildWardrobePrompt(influencer, {
         outfit: outfitText, hair,
         customText: customText || null,
+        referencePieces: taggedReferencePieces,
       })
       const url = await generateSingleImage({
-        prompt, aspectRatio: '16:9', referenceImage: refImage, onProgress: setProgress,
+        prompt, aspectRatio: '16:9', referenceImage: refImage, outfitImages: activeReferencePieces.map(piece => piece.image), onProgress: setProgress,
         onJobIds: jobIds => saveWardrobePending(influencer.id, { jobIds, label }),
         isCancelled: () => cancelRef.current,
       })
@@ -1762,7 +1871,7 @@ function WardrobeGenerator({ influencer, onAdd }) {
     if (!result) return
     onAdd({ id: generateId(), name: saveName.trim() || result.name, image: result.url })
     try { localStorage.removeItem(`wd_gen_result_${influencer.id}`) } catch {}
-    setResult(null); setSaveName(''); setTop(''); setBottom(''); setHair(''); setCustomText('')
+    setResult(null); setSaveName(''); setTop(''); setBottom(''); setHair(''); setCustomText(''); setReferencePieces(createWardrobeReferencePieces())
   }
 
   function discardResult() {
@@ -1870,6 +1979,18 @@ function WardrobeGenerator({ influencer, onAdd }) {
           <div>
             <div style={lS}>Full look description</div>
             <textarea value={customText} onChange={e => setCustomText(e.target.value)} placeholder="e.g. vintage leather jacket over a white tee, dark slim jeans, white sneakers, hair pushed back naturally" rows={3} style={{ ...iS, resize: 'vertical' }} />
+          </div>
+          <div>
+            <div style={{ ...lS, marginBottom: 8 }}>Reference Pieces</div>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(116px, 1fr))', gap: 10 }}>
+              {referencePieces.map(piece => (
+                <WardrobeReferencePieceCard
+                  key={piece.id}
+                  piece={piece}
+                  onChange={image => updateReferencePiece(piece.id, image)}
+                />
+              ))}
+            </div>
           </div>
         </div>
 
@@ -1997,7 +2118,7 @@ function WorldDropSection({ drops=[], onChange }) {
         <div style={{ textAlign:'center', padding:'52px 0', color:'var(--text-tertiary)' }}>
           <div style={{ fontSize:36, marginBottom:10, opacity:.2 }}>👗</div>
           <div style={{ fontSize:14, fontWeight:600, color:'var(--text-secondary)', marginBottom:6 }}>No wardrobe slots yet</div>
-          <div style={{ fontSize:13 }}>Add wardrobe slots to organize your influencer's looks.</div>
+          <div style={{ fontSize:13 }}>Add wardrobe slots to organize your Futurefluencer's looks.</div>
         </div>
       )}
       {drops.length>0&&(
@@ -2051,7 +2172,7 @@ function HomeSection({ slots=[], onChange }) {
         <div style={{textAlign:'center',padding:'52px 0',color:'var(--text-tertiary)'}}>
           <div style={{fontSize:36,marginBottom:10,opacity:.2}}>🏠</div>
           <div style={{fontSize:14,fontWeight:600,color:'var(--text-secondary)',marginBottom:6}}>No home photos yet</div>
-          <div style={{fontSize:13}}>Add room and home photos for your influencer.</div>
+          <div style={{fontSize:13}}>Add room and home photos for your Futurefluencer.</div>
         </div>
       )}
       {slots.length>0&&(
@@ -5905,7 +6026,7 @@ export default function Influencers() {
   }
 
   function del(id) {
-    if (!window.confirm('Delete this influencer? This cannot be undone.')) return
+    if (!window.confirm('Delete this Futurefluencer? This cannot be undone.')) return
     const next=influencers.filter(i=>i.id!==id)
     setInfluencers(next); setSelectedId(next[0]?.id??null)
   }
@@ -5943,7 +6064,7 @@ export default function Influencers() {
         transition: sidebarCollapsed?'width 0.25s ease':'none',
       }}>
         <div style={{padding:'16px 16px 8px',display:'flex',alignItems:'center',justifyContent:'space-between',borderBottom:`1px solid ${SD.border}`,minWidth:160}}>
-          <span style={{fontSize:11,fontWeight:700,color:SD.dim,textTransform:'uppercase',letterSpacing:'0.6px'}}>Influencers</span>
+          <span style={{fontSize:11,fontWeight:700,color:SD.dim,textTransform:'uppercase',letterSpacing:'0.6px'}}>Futurefluencers</span>
           <div style={{display:'flex',gap:5,alignItems:'center'}}>
             <button onClick={()=>setShowNew(true)} style={{width:26,height:26,borderRadius:7,background:'rgba(255,255,255,0.12)',color:SD.text,fontSize:16,display:'flex',alignItems:'center',justifyContent:'center',transition:'background 0.15s'}}
               onMouseEnter={e=>{e.currentTarget.style.background='rgba(255,255,255,0.2)'}}
@@ -5958,7 +6079,7 @@ export default function Influencers() {
 
         <div className="dark-scroll" style={{flex:1,overflowY:'auto',padding:'6px 8px'}}>
           {influencers.length===0&&(
-            <div style={{padding:'24px 8px',textAlign:'center',color:SD.dim,fontSize:13}}>No influencers yet</div>
+            <div style={{padding:'24px 8px',textAlign:'center',color:SD.dim,fontSize:13}}>No Futurefluencers yet</div>
           )}
           {(()=>{
             const ordered = infOrder
@@ -6094,7 +6215,7 @@ export default function Influencers() {
                         <div style={{fontSize:13,fontWeight:600,color:SD.text,whiteSpace:'nowrap',overflow:'hidden',textOverflow:'ellipsis'}}>{inf.name}</div>
                       )}
                       <div style={{fontSize:11,color:inf.tag?'rgba(139,92,246,0.75)':inf.gender?gc:SD.dim,marginTop:1,whiteSpace:'nowrap',overflow:'hidden',textOverflow:'ellipsis'}}>
-                        {inf.tag || inf.gender || 'Influencer'}
+                        {inf.tag || inf.gender || 'Futurefluencer'}
                       </div>
                     </div>
                     {/* Pct badge */}
@@ -6150,7 +6271,7 @@ export default function Influencers() {
               display:'flex',alignItems:'center',gap:6,padding:'8px 0',
               fontSize:14,fontWeight:600,color:'var(--accent)',background:'none',border:'none',
               alignSelf:'flex-start',
-            }}>← All Influencers</button>
+            }}>← All Futurefluencers</button>
           )}
 
           {/* ── Studio tab switcher + sidebar toggle */}
@@ -6256,7 +6377,7 @@ export default function Influencers() {
                 onMouseEnter={e=>{e.currentTarget.style.transform='translateY(-2px)';e.currentTarget.style.boxShadow='0 6px 28px rgba(139,92,246,0.5)'}}
                 onMouseLeave={e=>{e.currentTarget.style.transform='';e.currentTarget.style.boxShadow='0 4px 20px rgba(139,92,246,0.4)'}}
               >
-                ✦ Generate your influencer
+                ✦ Generate your Futurefluencer
               </button>
             </div>
           )}
@@ -6360,11 +6481,11 @@ export default function Influencers() {
             <div style={{width:72,height:72,borderRadius:20,margin:'0 auto 24px',background:'linear-gradient(135deg,#EC4899,#8B5CF6)',display:'flex',alignItems:'center',justifyContent:'center',boxShadow:'0 8px 40px rgba(139,92,246,0.45)'}}>
               <svg width="32" height="32" viewBox="0 0 32 32" fill="none"><circle cx="16" cy="11" r="5.5" stroke="white" strokeWidth="2"/><path d="M4 28c0-6.6 5.4-12 12-12s12 5.4 12 12" stroke="white" strokeWidth="2" strokeLinecap="round"/></svg>
             </div>
-            <h2 style={{fontSize:26,fontWeight:800,letterSpacing:'-0.6px',color:'#fff',marginBottom:10,lineHeight:1.2}}>Build your first influencer</h2>
+            <h2 style={{fontSize:26,fontWeight:800,letterSpacing:'-0.6px',color:'#fff',marginBottom:10,lineHeight:1.2}}>Build your first Futurefluencer</h2>
             <p style={{fontSize:14,color:'rgba(255,255,255,0.38)',marginBottom:28}}>Design a unique AI persona in minutes.</p>
             <button onClick={()=>navigate('/create')} style={{padding:'13px 36px',borderRadius:980,background:'linear-gradient(135deg,#EC4899,#8B5CF6)',color:'#fff',fontSize:15,fontWeight:700,letterSpacing:'-0.2px',boxShadow:'0 0 32px rgba(139,92,246,0.4),0 4px 16px rgba(0,0,0,0.3)',transition:'transform 0.18s,box-shadow 0.18s'}}
               onMouseEnter={e=>{e.currentTarget.style.transform='scale(1.04) translateY(-1px)';e.currentTarget.style.boxShadow='0 0 52px rgba(139,92,246,0.55),0 8px 24px rgba(0,0,0,0.4)'}}
-              onMouseLeave={e=>{e.currentTarget.style.transform='scale(1)';e.currentTarget.style.boxShadow='0 0 32px rgba(139,92,246,0.4),0 4px 16px rgba(0,0,0,0.3)'}}>+ Create Influencer</button>
+              onMouseLeave={e=>{e.currentTarget.style.transform='scale(1)';e.currentTarget.style.boxShadow='0 0 32px rgba(139,92,246,0.4),0 4px 16px rgba(0,0,0,0.3)'}}>+ Create Futurefluencer</button>
           </div>
         </main>
       ) : (
@@ -6379,10 +6500,10 @@ export default function Influencers() {
             <div style={{width:72,height:72,borderRadius:20,margin:'0 auto 24px',background:'linear-gradient(135deg,#EC4899,#8B5CF6)',display:'flex',alignItems:'center',justifyContent:'center',boxShadow:'0 8px 32px rgba(139,92,246,0.4)'}}>
               <svg width="32" height="32" viewBox="0 0 32 32" fill="none"><circle cx="16" cy="11" r="5.5" stroke="white" strokeWidth="2"/><path d="M4 28c0-6.6 5.4-12 12-12s12 5.4 12 12" stroke="white" strokeWidth="2" strokeLinecap="round"/></svg>
             </div>
-            <h2 style={{fontSize:26,fontWeight:800,letterSpacing:'-0.6px',color:'var(--text-primary)',marginBottom:24}}>Build your first influencer</h2>
+            <h2 style={{fontSize:26,fontWeight:800,letterSpacing:'-0.6px',color:'var(--text-primary)',marginBottom:24}}>Build your first Futurefluencer</h2>
             <button onClick={()=>navigate('/create')} style={{padding:'13px 36px',borderRadius:980,background:'linear-gradient(135deg,#EC4899,#8B5CF6)',color:'#fff',fontSize:15,fontWeight:700,letterSpacing:'-0.2px',boxShadow:'0 0 28px rgba(139,92,246,0.35),0 4px 16px rgba(0,0,0,0.12)',transition:'transform 0.18s,box-shadow 0.18s'}}
               onMouseEnter={e=>{e.currentTarget.style.transform='scale(1.04) translateY(-1px)';e.currentTarget.style.boxShadow='0 0 48px rgba(139,92,246,0.5),0 8px 24px rgba(0,0,0,0.14)'}}
-              onMouseLeave={e=>{e.currentTarget.style.transform='scale(1)';e.currentTarget.style.boxShadow='0 0 28px rgba(139,92,246,0.35),0 4px 16px rgba(0,0,0,0.12)'}}>+ Create Influencer</button>
+              onMouseLeave={e=>{e.currentTarget.style.transform='scale(1)';e.currentTarget.style.boxShadow='0 0 28px rgba(139,92,246,0.35),0 4px 16px rgba(0,0,0,0.12)'}}>+ Create Futurefluencer</button>
           </div>
         </main>
       ))}

@@ -395,7 +395,7 @@ export default function BrandDeals() {
           <div style={{ textAlign: 'center', padding: '80px 0', color: 'var(--text-tertiary)' }}>
             <div style={{ fontSize: 40, marginBottom: 12 }}>✦</div>
             <p style={{ fontSize: 15, fontWeight: 500, marginBottom: 8 }}>No brand deals yet</p>
-            <p style={{ fontSize: 13 }}>Add brands you want to promote with your influencers</p>
+            <p style={{ fontSize: 13 }}>Add brands you want to promote with your Futurefluencers</p>
           </div>
         ) : (
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(240px, 1fr))', gap: 16 }}>

@@ -1,22 +1,29 @@
 ====================================================
-  AI INFLUENCER STUDIO - LOCAL SETUP GUIDE
+  AI INFLUENCER STUDIO - SETUP AND DEPLOYMENT GUIDE
 ====================================================
+
+
+PRODUCTION
+--------------------------------------------------
+Primary URL:
+   https://influencers.2zero.network
+
+Worker URL:
+   https://ai-influencer.jens-e4b.workers.dev
+
+Health check:
+   https://influencers.2zero.network/api/health
 
 
 WHAT YOU NEED
 --------------------------------------------------
 - Node.js 18 or newer
-- Codex Desktop or a regular PowerShell terminal
+- PowerShell
+- Cloudflare access through Wrangler
 - A Higgsfield account for image and video generation
 
 
-HOW TO GET THE PROJECT
---------------------------------------------------
-1. Clone the repository or download the ZIP.
-2. Open the project folder in Codex Desktop or PowerShell.
-
-
-HOW TO RUN IT LOCALLY
+LOCAL DEVELOPMENT
 --------------------------------------------------
 1. Install dependencies:
 
@@ -26,17 +33,23 @@ HOW TO RUN IT LOCALLY
 
       npm run dev
 
-3. Open your browser:
+3. Open:
 
       http://localhost:5173
+
+Do not stop an existing Vite dev server on port 5173 unless you intentionally started it.
 
 
 CONNECTING HIGGSFIELD
 --------------------------------------------------
-1. In the app, open Settings.
+1. Open Settings.
 2. Click "Connect Higgsfield".
 3. Log in with your Higgsfield account.
 4. The app uses your own Higgsfield credits.
+
+Higgsfield tokens are stored in browser localStorage per domain.
+After switching from the workers.dev domain to influencers.2zero.network,
+connect Higgsfield again on influencers.2zero.network.
 
 
 CLOUDFLARE DEPLOYMENT
@@ -45,21 +58,70 @@ CLOUDFLARE DEPLOYMENT
 
       npm run cf:whoami
 
-2. Validate a deployment without publishing:
+2. Build locally:
+
+      npm run build
+
+3. Validate deployment without publishing:
 
       npm run deploy:dry-run
 
-3. Deploy the Worker:
+4. Deploy the Worker and static assets:
 
       npm run deploy
 
-The Wrangler config builds the Vite app, uploads the static assets from dist,
-and runs API routes through worker/index.js.
+The Wrangler config runs npm run build, uploads dist as Workers Static Assets,
+serves SPA routes through index.html fallback, and sends /api/* through
+worker/index.js.
+
+
+POST-DEPLOY CHECKS
+--------------------------------------------------
+Check the production health endpoint:
+
+      Invoke-WebRequest -Uri "https://influencers.2zero.network/api/health" -UseBasicParsing
+
+Check the primary SPA route:
+
+      Invoke-WebRequest -Uri "https://influencers.2zero.network/settings" -UseBasicParsing
+
+Expected health body:
+
+      {"ok":true,"runtime":"cloudflare-workers","media":{"images":"not_configured","stream":"not_configured"}}
+
+
+LEGACY LOCALSTORAGE IMPORT
+--------------------------------------------------
+If user-created avatars only exist on the old workers.dev origin, open:
+
+      https://influencers.2zero.network/?importLegacy=1
+
+This imports app data from:
+
+      https://ai-influencer.jens-e4b.workers.dev
+
+It does not import Higgsfield tokens, Anthropic API keys, OAuth verifier data,
+or refresh tokens. Reconnect Higgsfield on the production domain after import.
+
+
+MEDIA STATUS
+--------------------------------------------------
+- Cloudflare Images is not active yet.
+- Cloudflare Stream is not active yet.
+- Current generated media is local browser data, static seed assets, or Higgsfield-hosted URLs.
+- Do not describe current generated media as persisted in Cloudflare Images or Stream.
+
+
+MORE DOCUMENTATION
+--------------------------------------------------
+Read:
+
+      docs/cloudflare-worker-runbook.md
 
 
 NOTES
 --------------------------------------------------
-- All user data is saved in browser localStorage.
+- All user data is browser-local unless it is a static seed asset.
 - Clearing browser data resets the local app data.
 - Image and video generation needs internet access for Higgsfield.
-- Cloudflare Images and Cloudflare Stream are not currently used by the app runtime.
+- No secrets belong in wrangler.jsonc or source files.

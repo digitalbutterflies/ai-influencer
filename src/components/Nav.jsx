@@ -2,7 +2,7 @@ import { NavLink, useLocation } from 'react-router-dom'
 import { useTheme } from '../context/theme'
 
 const links = [
-  { to: '/influencers', label: 'Influencers' },
+  { to: '/influencers', label: 'Futurefluencers' },
   { to: '/inspiration', label: 'Inspiration' },
   { to: '/brand-deals', label: 'Brand Deals' },
 ]
@@ -61,7 +61,7 @@ export default function Nav() {
           fontWeight: 700, fontSize: 15, letterSpacing: '-0.4px',
           color: dark ? 'rgba(255,255,255,0.90)' : 'var(--text-primary)',
           transition: 'color 0.5s',
-        }}>Influencer Studio</span>
+        }}>Futurefluencer Studio</span>
       </NavLink>
 
       {/* Nav links */}

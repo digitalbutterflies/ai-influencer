@@ -220,7 +220,7 @@ export async function exportInfluencerCard(inf) {
   // Name
   ctx.fillStyle = '#111111'
   ctx.font = `bold 36px -apple-system, Arial, sans-serif`
-  ctx.fillText(inf.name || 'Influencer', cx, cy + 2)
+  ctx.fillText(inf.name || 'Futurefluencer', cx, cy + 2)
   cy += 14
 
   // Meta chips inline
@@ -436,7 +436,7 @@ export async function exportInfluencerCard(inf) {
   ctx.fillRect(CX, FY, W - CX, 30)
 
   ctx.fillStyle = '#9CA3AF'; ctx.font = '9px -apple-system, Arial, sans-serif'
-  ctx.fillText('AI Influencer Studio', cx, FY + 19)
+  ctx.fillText('Futurefluencer Studio', cx, FY + 19)
 
   const dateStr = inf.createdAt ? new Date(inf.createdAt).toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' }) : ''
   ctx.textAlign = 'right'
@@ -446,7 +446,7 @@ export async function exportInfluencerCard(inf) {
   // ── DOWNLOAD ─────────────────────────────────────────────────────
   try {
     const link = document.createElement('a')
-    link.download = `${(inf.name || 'influencer').toLowerCase().replace(/\s+/g, '-')}-media-kit.png`
+    link.download = `${(inf.name || 'futurefluencer').toLowerCase().replace(/\s+/g, '-')}-media-kit.png`
     link.href = canvas.toDataURL('image/png', 0.95)
     link.click()
   } catch {

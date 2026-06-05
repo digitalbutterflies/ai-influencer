@@ -21,7 +21,7 @@ async function ensureClientId() {
     method: 'POST',
     headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
     body: JSON.stringify({
-      client_name: 'AI Influencer Studio',
+      client_name: 'Futurefluencer Studio',
       redirect_uris: [`${window.location.origin}/auth/callback`],
       grant_types: ['authorization_code'],
       response_types: ['code'],

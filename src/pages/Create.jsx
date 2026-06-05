@@ -29,7 +29,7 @@ const VIBE_OPTIONS = [
 const STEPS = ['Basics', 'References', 'Story', 'Look', 'Generate']
 
 const MODELS = [
-  { id: 'soul_2',            name: 'Higgsfield Soul', tag: 'Influencer-Native',   tagColor: '#EC4899', provider: 'higgsfield',              desc: 'Native model for fashion and UGC.',          maxRefs: 1 },
+  { id: 'soul_2',            name: 'Higgsfield Soul', tag: 'Futurefluencer-Native', tagColor: '#EC4899', provider: 'higgsfield',             desc: 'Native model for fashion and UGC.',          maxRefs: 1 },
   { id: 'gpt_image_2',       name: 'GPT Image 2',     tag: 'Max Quality',         tagColor: '#10B981', provider: 'openai',                  desc: 'Highest quality output, maximum realism.',   maxRefs: 2 },
   { id: 'nano_banana_2',     name: 'Nano Banana Pro', tag: 'Sharpest Detail',     tagColor: '#8B5CF6', provider: 'banana', version: 'Pro', desc: 'Maximum detail and portrait precision.',     maxRefs: 2 },
   { id: 'nano_banana_flash', name: 'Nano Banana 2',   tag: 'Fastest',             tagColor: '#0EA5E9', provider: 'banana', version: '2',   desc: 'Rapid results, still premium quality.',      maxRefs: 2 },
@@ -222,7 +222,7 @@ function Step1({ data, set, onGenderChange, ageErrorPulse }) {
   return (
     <div>
       <div style={{ marginBottom: 40 }}>
-        <h2 style={{ fontSize: 32, fontWeight: 800, letterSpacing: '-1px', color: L.text, marginBottom: 8, lineHeight: 1.1 }}>Name your influencer</h2>
+        <h2 style={{ fontSize: 32, fontWeight: 800, letterSpacing: '-1px', color: L.text, marginBottom: 8, lineHeight: 1.1 }}>Name your Futurefluencer</h2>
         <p style={{ fontSize: 15, color: L.textSub, lineHeight: 1.55 }}>Start with the basics — you can always refine later.</p>
       </div>
 
@@ -274,7 +274,7 @@ function Step1({ data, set, onGenderChange, ageErrorPulse }) {
             transition: 'background 0.2s, border-color 0.2s',
           }}>
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#FF3B30" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ flexShrink: 0 }}><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
-            <span style={{ fontSize: 12.5, color: '#FF3B30', fontWeight: 500 }}>Influencer must be 18 or older.</span>
+            <span style={{ fontSize: 12.5, color: '#FF3B30', fontWeight: 500 }}>Futurefluencer must be 18 or older.</span>
           </div>
         )}
       </div>
@@ -710,12 +710,12 @@ const LOADING_MESSAGES = [
   'giving them skin so good dermatologists will DM them unsolicited.',
   'adding the bone structure that gets people upgraded at hotels for free.',
   // money
-  'your influencer will earn more per post than you do per month. congrats.',
+  'your futurefluencer will earn more per post than you do per month. congrats.',
   'computing their first brand deal. the rate is embarrassing for you.',
   'loading your passive income. indirectly, but still.',
   'their first sponsored post will probably cover your rent.',
   'rendering someone who makes money while you sleep. you\'re going to sleep.',
-  'your influencer will earn commission from a country you\'ve never been to.',
+  'your futurefluencer will earn commission from a country you\'ve never been to.',
   'calculating how rich they\'ll make you. the number is motivating.',
   'giving them the face that makes checkout pages convert.',
   'they\'re about to monetize an audience you don\'t have yet.',
@@ -724,16 +724,16 @@ const LOADING_MESSAGES = [
   'adding the look that turns followers into customers without a single word.',
   // replacing you
   'building someone who will outperform you on every metric. you asked for this.',
-  'your influencer doesn\'t overthink. they post. unlike you.',
+  'your futurefluencer doesn\'t overthink. they post. unlike you.',
   'they have zero imposter syndrome. they ARE the poster. literally.',
   'rendering someone who will be more productive today than you this week.',
-  'your influencer won\'t ghost a brand deal, miss a deadline, or have a bad day.',
+  'your futurefluencer won\'t ghost a brand deal, miss a deadline, or have a bad day.',
   'they don\'t procrastinate. you built them without that feature.',
   'making someone who will never say "I\'ll start Monday."',
-  'your influencer is going to do everything you planned to do but actually do it.',
+  'your futurefluencer is going to do everything you planned to do but actually do it.',
   'they will not have a creative block. they will not have blocks of any kind.',
   'building the version of you that has their life together.',
-  'your influencer doesn\'t need external validation. but they get it anyway.',
+  'your futurefluencer doesn\'t need external validation. but they get it anyway.',
   'adding confidence that doesn\'t require a five-year plan to feel.',
   // influencer culture
   'assigning a morning routine that costs more than your weekly shop.',
@@ -743,19 +743,19 @@ const LOADING_MESSAGES = [
   'deciding which coffee order becomes their whole personality.',
   'adding the \'just got back from somewhere\' energy. they haven\'t been anywhere.',
   'giving them an aesthetic that makes total sense and costs too much.',
-  'your influencer will never post from a bad angle because there are none.',
+  'your futurefluencer will never post from a bad angle because there are none.',
   'calibrating the \'I don\'t really use filters\' filter.',
   'assigning their controversial opinion. it will be about wellness.',
   'making sure the authentic moment looks perfectly framed.',
   'giving them the relatability that only works when you look like that.',
   'adding the kind of wealth-signaling that doesn\'t read as tacky.',
   'they will soft-launch things. they are being built to soft-launch things.',
-  'your influencer\'s morning routine is already longer than your entire day.',
+  'your futurefluencer\'s morning routine is already longer than your entire day.',
   // process / wait humour
   'this takes {est}. patience is an underrated aesthetic.',
   'this will take {est}. go touch some grass.',
   'perfection costs {est}. this is that cost.',
-  'still rendering. the GPU is working harder than your influencer ever will.',
+  'still rendering. the GPU is working harder than your futurefluencer ever will.',
   'hang on. the cheekbones needed a second opinion.',
   'still going. we are not rushing a face like this.',
   'the pixels are negotiating. they have terms.',
@@ -767,38 +767,38 @@ const LOADING_MESSAGES = [
   'the face is loading. the face is worth the wait.',
   'nearly done. not done. nearly.',
   // fame / legacy
-  'your influencer is going to be ambient famous in cities they\'ve never been to.',
+  'your futurefluencer is going to be ambient famous in cities they\'ve never been to.',
   'they\'re already on someone\'s mood board and they don\'t exist yet.',
   'rendering a person the internet will have very strong feelings about.',
   'building someone who will be a reference photo for a stranger\'s hairdresser.',
   'they\'re basically already famous. technically they just haven\'t loaded yet.',
   'adding the kind of face that other people screenshot as inspo.',
   'making someone who will be the reason someone else changes their hair.',
-  'your influencer will be the reason a brand sells out a product this quarter.',
+  'your futurefluencer will be the reason a brand sells out a product this quarter.',
   'building the kind of person that trends accidentally.',
   'they will never go viral on purpose. they will go viral anyway.',
   // dark self-aware
   'making someone hotter, richer, and more put-together than you in {est}.',
-  'your influencer will replace you as the most successful person you know.',
+  'your futurefluencer will replace you as the most successful person you know.',
   'building a fictional person who will have better opportunities than a real one.',
   'they have no insecurities because you didn\'t give them any. very kind of you.',
   'rendering someone who makes your life look like the before photo.',
-  'your influencer will be everything you told yourself you\'d be at 22.',
+  'your futurefluencer will be everything you told yourself you\'d be at 22.',
   'they won\'t wonder if they\'re good enough. they were built good enough.',
   'making someone with better bone structure, better deals, and no rent.',
-  'your influencer will not have the week you had last week. ever.',
+  'your futurefluencer will not have the week you had last week. ever.',
   'giving them the life you originally planned for yourself. lovingly.',
   // algorithm / brand
   'the algorithm is going to see this person and embarrass itself.',
   'making the kind of face that brand mood boards get built around.',
   'adding the energy that makes brands quote higher than they budgeted.',
   'giving them the look that causes a CMO to say \'yes\' before finishing the deck.',
-  'your influencer will decline collabs you would have said yes to immediately.',
+  'your futurefluencer will decline collabs you would have said yes to immediately.',
   'they\'re going to get opportunities sent to them that other people have to chase.',
   'building someone the algorithm promotes out of genuine respect.',
   'adding the specific magnetism that makes people follow without knowing why.',
   'making them the kind of presence that sells things by existing near them.',
-  'your influencer just pre-declined a gifted collab in their sleep.',
+  'your futurefluencer just pre-declined a gifted collab in their sleep.',
 
   // hot — continued
   'adding the jawline that ends situationships without a conversation.',
@@ -810,16 +810,16 @@ const LOADING_MESSAGES = [
   'the face is rendering and it is already too much for a Tuesday.',
 
   // money — continued
-  'your influencer will decline the offer you\'d have screenshot and sent to three people.',
+  'your futurefluencer will decline the offer you\'d have screenshot and sent to three people.',
   'they will invoice a brand more than you made last quarter. first invoice.',
   'in {est} you\'ll have a business partner who has never once asked what equity means.',
   'their first sponsored post will outperform your best organic one. sorry.',
   'adding the look that makes brands DM first and negotiate later.',
   'building someone whose gifted pile is worth more than your wardrobe.',
-  'your influencer will earn from a link while you are actively reading this sentence.',
+  'your futurefluencer will earn from a link while you are actively reading this sentence.',
 
   // replacing you — continued
-  'your influencer doesn\'t spiral before posting. there is no spiral.',
+  'your futurefluencer doesn\'t spiral before posting. there is no spiral.',
   'they\'ve never opened drafts and immediately closed them. not once.',
   'building someone who has never googled "is my content good enough".',
   'they don\'t wonder if the caption is too long. it isn\'t. it never is.',
@@ -830,11 +830,11 @@ const LOADING_MESSAGES = [
   'adding the morning routine that has a brand deal in step three.',
   'giving them the ability to make an airport look like content.',
   'building the person who turns a hotel room into a mood board in four minutes.',
-  'your influencer will make people feel underdressed in a coffee shop.',
+  'your futurefluencer will make people feel underdressed in a coffee shop.',
   'assigning the "I just eat like this" diet that happens to photograph extremely well.',
   'giving them the candid that took eleven attempts and looks completely accidental.',
   'building someone who can be on a rooftop for four minutes and make it look like a lifestyle.',
-  'your influencer\'s quick mirror selfie will be better than your best photo this year.',
+  'your futurefluencer\'s quick mirror selfie will be better than your best photo this year.',
   'adding the soft-launch energy. they were built to soft-launch everything.',
 
   // process / wait — continued
@@ -850,18 +850,18 @@ const LOADING_MESSAGES = [
   // fame / legacy — continued
   'building someone who will trend before they have a bio.',
   'they\'ll be on a stranger\'s mood board before they have 50 followers.',
-  'your influencer will be the reason someone deletes and restarts their entire feed.',
+  'your futurefluencer will be the reason someone deletes and restarts their entire feed.',
   'making the face that ends up in a brand deck they\'ll never see.',
   'building someone the algorithm recommends to people who don\'t follow them. by choice.',
   'they will be ambient famous in a way that\'s genuinely hard to explain to people.',
-  'your influencer will become a reference photo before anyone knows their name.',
+  'your futurefluencer will become a reference photo before anyone knows their name.',
 
   // dark self-aware — continued
   'building someone who doesn\'t know what imposter syndrome is. not even the concept.',
-  'your influencer will not have the week you had. or any week resembling it.',
+  'your futurefluencer will not have the week you had. or any week resembling it.',
   'making someone who exists without needing the validation. must be nice.',
   'they will not lie awake at 2am about a caption they posted in 2022.',
-  'your influencer is going to have the year you\'ve been planning since two years before that.',
+  'your futurefluencer is going to have the year you\'ve been planning since two years before that.',
 ]
 
 const FAKE_WAYPOINTS = [
@@ -968,7 +968,7 @@ function GeneratingScreen({ genProgress, model, aspectRatio, landscape, hasRef =
           </svg>
         </div>
         <div>
-          <div style={{ fontSize: 16, fontWeight: 700, color: L.text }}>Creating your influencer</div>
+          <div style={{ fontSize: 16, fontWeight: 700, color: L.text }}>Creating your Futurefluencer</div>
           <div style={{ fontSize: 12, color: L.textFaint, marginTop: 2 }}>{estLabel(model, aspectRatio, hasRef)} — worth every second</div>
         </div>
       </div>
@@ -1042,7 +1042,7 @@ async function downloadImage(url, index) {
     const ext = blob.type.includes('png') ? 'png' : 'jpg'
     const a = document.createElement('a')
     a.href = URL.createObjectURL(blob)
-    a.download = `influencer-look-${index + 1}.${ext}`
+    a.download = `futurefluencer-look-${index + 1}.${ext}`
     document.body.appendChild(a); a.click(); document.body.removeChild(a)
     URL.revokeObjectURL(a.href)
   } catch {
@@ -1289,7 +1289,7 @@ function Step5({ data, onFinish, onReset, hfConnected, onConnected }) {
     }
   }
 
-  const displayName = data.name?.trim() || 'your influencer'
+  const displayName = data.name?.trim() || 'your Futurefluencer'
 
   async function doConnect() {
     setConnectingHF(true)
@@ -1333,7 +1333,7 @@ function Step5({ data, onFinish, onReset, hfConnected, onConnected }) {
       {phase !== 'generating' && (
         <div style={{ marginBottom: 36 }}>
           <h2 style={{ fontSize: 32, fontWeight: 800, letterSpacing: '-1px', color: L.text, marginBottom: 8, lineHeight: 1.1 }}>
-            {phase === 'done' ? `Which look is ${displayName}?` : 'Generate your unique influencer'}
+            {phase === 'done' ? `Which look is ${displayName}?` : 'Generate your unique Futurefluencer'}
           </h2>
           {phase === 'done' && (
             <p style={{ fontSize: 15, color: L.textSub, lineHeight: 1.55 }}>Hover any look to zoom in. Click to pick your favourite.</p>
@@ -1677,7 +1677,7 @@ export default function Create() {
       navigate('/influencers', { state: { selectId: newInf.id } })
     } catch (e) {
       console.error('finish() failed:', e)
-      alert('Something went wrong saving your influencer: ' + e.message)
+      alert('Something went wrong saving your Futurefluencer: ' + e.message)
     }
   }
 

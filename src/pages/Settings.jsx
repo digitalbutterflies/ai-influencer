@@ -91,7 +91,7 @@ export default function Settings() {
 
         <Section title="Higgsfield">
           <p style={{ fontSize: 13, color: 'var(--text-secondary)', marginBottom: 16, lineHeight: 1.6 }}>
-            Connect your Higgsfield account to generate influencer images directly in the app. Images use your own Higgsfield credits.
+            Connect your Higgsfield account to generate Futurefluencer images directly in the app. Images use your own Higgsfield credits.
           </p>
           {hfConnected ? (
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>

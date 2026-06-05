@@ -1259,7 +1259,7 @@ export default function PhotoStudioPanel({ influencer, onGoToWardrobe, onUseAsSt
             <div style={{ width: 15, height: 15, borderRadius: '50%', border: '1.5px solid var(--text-tertiary)', color: 'var(--text-tertiary)', fontSize: 9, fontWeight: 700, display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'default', userSelect: 'none' }}>i</div>
             {propInfoTip && (
               <div style={{ position: 'absolute', top: 'calc(100% + 8px)', left: 0, zIndex: 200, width: 220, background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 10, padding: '10px 12px', boxShadow: '0 8px 24px rgba(0,0,0,0.18)', fontSize: 12, color: 'var(--text-secondary)', lineHeight: 1.5, pointerEvents: 'none' }}>
-                A product or item you want the influencer to hold or wear in the photo. Upload an image of the product and it will be worked into the shot.
+                A product or item you want the Futurefluencer to hold or wear in the photo. Upload an image of the product and it will be worked into the shot.
               </div>
             )}
           </div>

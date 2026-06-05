@@ -266,7 +266,7 @@ export async function initSession() {
     params: {
       protocolVersion: '2024-11-05',
       capabilities: { tools: {} },
-      clientInfo: { name: 'AI Influencer Studio', version: '1.0' },
+      clientInfo: { name: 'Futurefluencer Studio', version: '1.0' },
     },
   })
 }
@@ -841,7 +841,7 @@ export async function generateThreeImages({ prompts, aspectRatio = '9:16', model
 }
 
 // Single image generation — uploads base64 ref images properly before generating
-export async function generateSingleImage({ prompt, aspectRatio = '16:9', resolution = '4k', referenceImage = null, outfitImage = null, onProgress, pendingKey = null, onJobIds = null, isCancelled = null }) {
+export async function generateSingleImage({ prompt, aspectRatio = '16:9', resolution = '4k', referenceImage = null, outfitImage = null, outfitImages = [], onProgress, pendingKey = null, onJobIds = null, isCancelled = null }) {
   await initSession()
   onProgress?.(5)
 
@@ -861,14 +861,19 @@ export async function generateSingleImage({ prompt, aspectRatio = '16:9', resolu
     }
   }
 
-  if (outfitImage) {
+  const outfitRefs = [
+    ...(outfitImage ? [{ image: outfitImage, label: 'outfit' }] : []),
+    ...outfitImages.filter(Boolean).map((image, i) => ({ image, label: `outfit ${i + 1}` })),
+  ]
+
+  for (const [idx, ref] of outfitRefs.entries()) {
     try {
-      hflog('[HF] uploading outfit reference...')
-      medias.push({ value: await uploadRefImage(outfitImage), role: 'image' })
+      hflog(`[HF] uploading ${ref.label} reference...`)
+      medias.push({ value: await uploadRefImage(ref.image), role: 'image' })
       outfitUploaded = true
-      onProgress?.(18)
+      onProgress?.(18 + Math.min(idx * 2, 6))
     } catch (e) {
-      console.warn('[HF] outfit reference upload failed:', e.message)
+      console.warn(`[HF] ${ref.label} reference upload failed:`, e.message)
     }
   }
 

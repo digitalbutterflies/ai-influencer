@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 
-const WORDS = ['Influencer', 'Creator', 'Avatar', 'Celebrity']
+const WORDS = ['Futurefluencer', 'Creator', 'Avatar', 'Celebrity']
 const TYPE_SPEED = 75
 const DELETE_SPEED = 45
 const PAUSE_MS = 1800
@@ -201,7 +201,7 @@ export default function Landing() {
         </div>
 
         <p style={{ fontSize:20, color:'rgba(255,255,255,0.38)', lineHeight:1.65, margin:'0 auto 52px', maxWidth:420, fontWeight:400, letterSpacing:'-0.1px' }}>
-          Build, manage, and grow your AI influencers.
+          Build, manage, and grow your Futurefluencers.
         </p>
 
         <button
