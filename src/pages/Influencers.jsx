@@ -1642,7 +1642,7 @@ function buildWardrobePrompt(influencer, { outfit, hair, customText, referencePi
   ].filter(Boolean)
   const changes = `Change only: ${changeParts.join('; ') || 'casual stylish outfit, natural hairstyle'}.`
   const referenceInstructions = referencePieces.length
-    ? `\n\nOutfit reference pieces:\n${referencePieces.map(piece => `${piece.tag} is the ${piece.label} reference. Use only the garment or accessory from ${piece.tag}: match its silhouette, material, color, logo, pattern, sole shape, trim, and proportions exactly. Apply it naturally as worn clothing or an accessory on the body. Do not copy the face, body, pose, background, lighting, camera angle, hands, or unrelated objects from ${piece.tag}.`).join('\n')}`
+    ? `\n\nLook references:\n${referencePieces.map(buildWardrobeReferenceInstruction).join('\n')}`
     : ''
 
   return `Professional full-body character turnaround sheet. ${phys}Pure white seamless background throughout. Soft neutral studio lighting, perfectly flat and even across all four panels — no shadows, no color cast.
@@ -1671,24 +1671,29 @@ function clearWardrobePending(influencerId) {
   try { localStorage.removeItem(`hf_wardrobe_pending_${influencerId}`) } catch {}
 }
 
-const WARDROBE_REFERENCE_PIECES = [
-  { id: 'top', label: 'Top / Hoodie' },
-  { id: 'shoes', label: 'Shoes' },
-  { id: 'accessory', label: 'Accessory' },
-]
-
-function createWardrobeReferencePieces() {
-  return WARDROBE_REFERENCE_PIECES.map(piece => ({ ...piece, image: null }))
+function buildWardrobeReferenceInstruction(piece) {
+  const note = piece.note?.trim()
+  if (note) {
+    return `${piece.tag}: use specifically "${note}" from this ${piece.label}. Ignore face, body, pose, background, lighting, hands, and camera angle.`
+  }
+  if (piece.kind === 'style') {
+    return `${piece.tag}: use as the existing visual style reference. Match outfit aesthetic, silhouette, layering, color palette, and styling direction. Ignore face, body, pose, background, lighting, hands, and camera angle.`
+  }
+  return `${piece.tag}: use as the look reference. Match the visible outfit and product details exactly, including garment construction, color, material, logos, fit, and proportions. If this is a multi-angle sheet, use all visible angles. Ignore face, body, pose, background, lighting, hands, and camera angle.`
 }
 
-function WardrobeReferencePieceCard({ piece, onChange }) {
+function createWardrobeLookReference() {
+  return { image: null, note: '' }
+}
+
+function WardrobeLookReferenceCard({ reference, onChange }) {
   const fileRef = useRef()
   const [dragOver, setDragOver] = useState(false)
 
   function handleFile(file) {
     if (!file || !file.type.startsWith('image/')) return
     const reader = new FileReader()
-    reader.onload = event => compressImage(event.target.result).then(onChange).catch(console.error)
+    reader.onload = event => compressImage(event.target.result).then(image => onChange({ ...reference, image })).catch(console.error)
     reader.readAsDataURL(file)
   }
 
@@ -1698,7 +1703,7 @@ function WardrobeReferencePieceCard({ piece, onChange }) {
         minWidth: 0,
         borderRadius: 10,
         overflow: 'hidden',
-        border: `1.5px solid ${dragOver ? '#8B5CF6' : piece.image ? 'rgba(139,92,246,0.45)' : 'var(--border)'}`,
+        border: `1.5px solid ${dragOver ? '#8B5CF6' : reference.image ? 'rgba(139,92,246,0.45)' : 'var(--border)'}`,
         background: 'var(--bg)',
       }}
     >
@@ -1708,7 +1713,7 @@ function WardrobeReferencePieceCard({ piece, onChange }) {
         onDragLeave={() => setDragOver(false)}
         onDrop={e => { e.preventDefault(); setDragOver(false); handleFile(e.dataTransfer.files[0]) }}
         style={{
-          aspectRatio: '4/3',
+          aspectRatio: '16/9',
           position: 'relative',
           cursor: 'pointer',
           background: dragOver ? 'rgba(139,92,246,0.08)' : 'var(--bg-tertiary)',
@@ -1718,11 +1723,11 @@ function WardrobeReferencePieceCard({ piece, onChange }) {
           overflow: 'hidden',
         }}
       >
-        {piece.image ? (
+        {reference.image ? (
           <>
-            <img src={piece.image} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }} />
+            <img src={reference.image} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }} />
             <button
-              onClick={e => { e.stopPropagation(); onChange(null) }}
+              onClick={e => { e.stopPropagation(); onChange(createWardrobeLookReference()) }}
               style={{
                 position: 'absolute',
                 top: 6,
@@ -1744,7 +1749,7 @@ function WardrobeReferencePieceCard({ piece, onChange }) {
         ) : (
           <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 5, padding: 10, textAlign: 'center' }}>
             <span style={{ fontSize: 20, color: 'var(--text-tertiary)', opacity: 0.5 }}>+</span>
-            <span style={{ fontSize: 11, fontWeight: 600, color: 'var(--text-tertiary)', lineHeight: 1.25 }}>Upload reference</span>
+            <span style={{ fontSize: 11, fontWeight: 600, color: 'var(--text-tertiary)', lineHeight: 1.25 }}>Upload look reference</span>
           </div>
         )}
         <input
@@ -1755,9 +1760,22 @@ function WardrobeReferencePieceCard({ piece, onChange }) {
           onChange={e => { handleFile(e.target.files[0]); e.target.value = '' }}
         />
       </div>
-      <div style={{ padding: '8px 9px', fontSize: 12, fontWeight: 700, color: 'var(--text-primary)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-        {piece.label}
-      </div>
+      {reference.image && (
+        <div style={{ padding: 10 }}>
+          <div style={{ fontSize: 10.5, fontWeight: 700, color: 'var(--text-tertiary)', textTransform: 'uppercase', letterSpacing: '0.6px', marginBottom: 5 }}>What to copy</div>
+          <input
+            value={reference.note}
+            onChange={e => onChange({ ...reference, note: e.target.value })}
+            placeholder="e.g. exact hoodie graphic, shoe shape, full outfit"
+            style={{
+              width: '100%', padding: '8px 10px', borderRadius: 8,
+              border: '1.5px solid var(--border)', background: 'var(--bg-tertiary)',
+              fontSize: 12.5, color: 'var(--text-primary)', boxSizing: 'border-box',
+              outline: 'none', fontFamily: 'inherit',
+            }}
+          />
+        </div>
+      )}
     </div>
   )
 }
@@ -1767,13 +1785,14 @@ function WardrobeGenerator({ influencer, onAdd }) {
   const [bottom, setBottom] = useState('')
   const [hair, setHair] = useState('')
   const [customText, setCustomText] = useState('')
+  const [lookReference, setLookReference] = useState(createWardrobeLookReference)
+  const [useCreationStyleRef, setUseCreationStyleRef] = useState(false)
   const [generating, setGenerating] = useState(false)
   const [progress, setProgress] = useState(0)
   const [error, setError] = useState(null)
   const [result, setResult] = useState(null) // { url, name } — waiting to be saved
   const [saveName, setSaveName] = useState('')
   const [lightboxOpen, setLightboxOpen] = useState(false)
-  const [referencePieces, setReferencePieces] = useState(createWardrobeReferencePieces)
   const cancelRef = useRef(false)
   const genStartRef = useRef(null)
 
@@ -1789,7 +1808,24 @@ function WardrobeGenerator({ influencer, onAdd }) {
   }, [generating])
 
   const refImage = influencer.characterSheetImage || null
-  const activeReferencePieces = referencePieces.filter(piece => piece.image)
+  const creationParams = useMemo(() => getCreationParams(influencer.id), [influencer.id])
+  const hasCreationStyleRef = !!creationParams?.styleRef
+  const activeReferencePieces = [
+    ...(useCreationStyleRef && creationParams?.styleRef ? [{
+      image: creationParams.styleRef,
+      tag: null,
+      label: 'creation style reference',
+      kind: 'style',
+      note: creationParams.styleRefNote || '',
+    }] : []),
+    ...(lookReference.image ? [{
+      image: lookReference.image,
+      tag: null,
+      label: 'look reference',
+      kind: 'look',
+      note: lookReference.note || '',
+    }] : []),
+  ]
 
   // Resume any generation that was running when the user navigated away
   useEffect(() => {
@@ -1815,16 +1851,14 @@ function WardrobeGenerator({ influencer, onAdd }) {
   }, [influencer.id])
 
   useEffect(() => {
-    setReferencePieces(createWardrobeReferencePieces())
+    const params = getCreationParams(influencer.id)
+    setUseCreationStyleRef(!!params?.styleRef)
+    setLookReference(createWardrobeLookReference())
   }, [influencer.id])
 
   const canGenerate = refImage && !generating && !result && (
     customText.trim() || top.trim() || bottom.trim() || hair.trim() || activeReferencePieces.length > 0
   )
-
-  function updateReferencePiece(id, image) {
-    setReferencePieces(prev => prev.map(piece => piece.id === id ? { ...piece, image } : piece))
-  }
 
   function cancelGeneration() {
     cancelRef.current = true
@@ -1871,7 +1905,7 @@ function WardrobeGenerator({ influencer, onAdd }) {
     if (!result) return
     onAdd({ id: generateId(), name: saveName.trim() || result.name, image: result.url })
     try { localStorage.removeItem(`wd_gen_result_${influencer.id}`) } catch {}
-    setResult(null); setSaveName(''); setTop(''); setBottom(''); setHair(''); setCustomText(''); setReferencePieces(createWardrobeReferencePieces())
+    setResult(null); setSaveName(''); setTop(''); setBottom(''); setHair(''); setCustomText(''); setLookReference(createWardrobeLookReference())
   }
 
   function discardResult() {
@@ -1980,17 +2014,34 @@ function WardrobeGenerator({ influencer, onAdd }) {
             <div style={lS}>Full look description</div>
             <textarea value={customText} onChange={e => setCustomText(e.target.value)} placeholder="e.g. vintage leather jacket over a white tee, dark slim jeans, white sneakers, hair pushed back naturally" rows={3} style={{ ...iS, resize: 'vertical' }} />
           </div>
-          <div>
-            <div style={{ ...lS, marginBottom: 8 }}>Reference Pieces</div>
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(116px, 1fr))', gap: 10 }}>
-              {referencePieces.map(piece => (
-                <WardrobeReferencePieceCard
-                  key={piece.id}
-                  piece={piece}
-                  onChange={image => updateReferencePiece(piece.id, image)}
+          {hasCreationStyleRef && (
+            <div>
+              <div style={{ ...lS, marginBottom: 8 }}>Style reference</div>
+              <label style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 12, fontWeight: 700, color: 'var(--text-secondary)', cursor: 'pointer', marginBottom: useCreationStyleRef ? 8 : 0 }}>
+                <input
+                  type="checkbox"
+                  checked={useCreationStyleRef}
+                  onChange={e => setUseCreationStyleRef(e.target.checked)}
+                  style={{ accentColor: '#EC4899' }}
                 />
-              ))}
+                Use creation style reference
+              </label>
+              {useCreationStyleRef && (
+                <div style={{ display: 'grid', gridTemplateColumns: '64px 1fr', gap: 10, alignItems: 'center', padding: 8, borderRadius: 10, border: '1px solid var(--border)', background: 'var(--bg)' }}>
+                  <img src={creationParams.styleRef} alt="" style={{ width: 64, height: 64, borderRadius: 8, objectFit: 'cover', display: 'block' }} />
+                  <div style={{ minWidth: 0 }}>
+                    <div style={{ fontSize: 12, fontWeight: 700, color: 'var(--text-primary)', marginBottom: 3 }}>Creation style reference</div>
+                    <div style={{ fontSize: 11.5, color: 'var(--text-tertiary)', lineHeight: 1.35, overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                      {creationParams.styleRefNote || 'Outfit, aesthetic, or vibe inspo'}
+                    </div>
+                  </div>
+                </div>
+              )}
             </div>
+          )}
+          <div>
+            <div style={{ ...lS, marginBottom: 8 }}>Look reference</div>
+            <WardrobeLookReferenceCard reference={lookReference} onChange={setLookReference} />
           </div>
         </div>
 
