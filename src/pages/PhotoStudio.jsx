@@ -149,7 +149,7 @@ function PhotoHistoryThumb({ item, isSelected, onToggle, onUseAsStartFrame }) {
           outlineOffset: 2,
         }}
       >
-        <img src={item.url} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }} />
+        <img loading="lazy" decoding="async" src={item.url} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }} />
         {isSelected && <div style={{ position: 'absolute', inset: 0, background: 'rgba(139,92,246,0.18)' }} />}
 
         {/* Checkmark — top right */}
@@ -201,7 +201,7 @@ function PhotoHistoryThumb({ item, isSelected, onToggle, onUseAsStartFrame }) {
           onClick={() => { setLightbox(true); clearPopup() }}
         >
           <div style={{ position: 'relative' }}>
-            <img src={item.url} alt="" style={{ width: '100%', display: 'block', objectFit: 'cover' }} />
+            <img loading="lazy" decoding="async" src={item.url} alt="" style={{ width: '100%', display: 'block', objectFit: 'cover' }} />
             <button
               onClick={e => {
                 e.stopPropagation()
@@ -226,7 +226,7 @@ function PhotoHistoryThumb({ item, isSelected, onToggle, onUseAsStartFrame }) {
         <div onClick={() => setLightbox(false)} style={{ position: 'fixed', inset: 0, zIndex: 9999, background: 'rgba(0,0,0,0.92)', backdropFilter: 'blur(14px)', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'zoom-out' }}>
           <button onClick={() => setLightbox(false)} style={{ position: 'fixed', top: 20, right: 20, width: 36, height: 36, borderRadius: '50%', background: 'rgba(255,255,255,0.12)', color: '#fff', fontSize: 18, border: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1 }}>×</button>
           <div onClick={e => e.stopPropagation()} style={{ position: 'relative', borderRadius: 20, overflow: 'hidden', boxShadow: '0 40px 100px rgba(0,0,0,0.9)', background: '#000', maxWidth: 'min(680px, 90vw)', cursor: 'default' }}>
-            <img src={item.url} alt="" style={{ width: '100%', display: 'block', objectFit: 'contain', maxHeight: '82vh' }} />
+            <img loading="lazy" decoding="async" src={item.url} alt="" style={{ width: '100%', display: 'block', objectFit: 'contain', maxHeight: '82vh' }} />
             <div style={{ padding: '10px 12px', display: 'flex', gap: 8, background: 'var(--surface)' }}>
               <button
                 onClick={() => { const date = item.createdAt ? new Date(item.createdAt).toISOString().slice(0,10) : 'photo'; downloadImage(item.url, `photo-${date}.jpg`) }}
@@ -279,7 +279,7 @@ function OutfitCard({ image, label, active, onClick }) {
           display: 'flex', alignItems: 'center', justifyContent: 'center',
         }}>
           {image
-            ? <img src={image} alt={label} style={{ width: '100%', height: '100%', objectFit: 'cover', objectPosition: 'top', display: 'block' }} />
+            ? <img loading="lazy" decoding="async" src={image} alt={label} style={{ width: '100%', height: '100%', objectFit: 'cover', objectPosition: 'top', display: 'block' }} />
             : <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="var(--text-secondary)" strokeWidth="1.5" opacity="0.5"><circle cx="12" cy="8" r="3"/><path d="M6 20v-2a6 6 0 0 1 12 0v2"/></svg>
           }
         </div>
@@ -300,7 +300,7 @@ function OutfitCard({ image, label, active, onClick }) {
             background: 'var(--surface)',
           }}
         >
-          <img src={image} alt={label} style={{ width: '100%', aspectRatio: '16/9', objectFit: 'cover', display: 'block' }} />
+          <img loading="lazy" decoding="async" src={image} alt={label} style={{ width: '100%', aspectRatio: '16/9', objectFit: 'cover', display: 'block' }} />
           <div style={{ padding: '5px 8px', fontSize: 10, fontWeight: 600, color: 'var(--text-primary)' }}>{label}</div>
         </div>,
         document.body
@@ -852,7 +852,7 @@ export default function PhotoStudioPanel({ influencer, onGoToWardrobe, onUseAsSt
           >
             {refImage ? (
               <>
-                <img src={refImage} alt={influencer?.name} style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }} />
+                <img loading="lazy" decoding="async" src={refImage} alt={influencer?.name} style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }} />
                 <div style={{ position: 'absolute', bottom: 0, left: 0, right: 0, background: 'linear-gradient(transparent,rgba(0,0,0,0.6))', padding: '22px 12px 10px' }}>
                   <span style={{ fontSize: 13, fontWeight: 700, color: '#fff', letterSpacing: '-0.2px' }}>{influencer?.name}</span>
                 </div>
@@ -900,7 +900,7 @@ export default function PhotoStudioPanel({ influencer, onGoToWardrobe, onUseAsSt
 
           {rightPreviewUrl ? (
             <>
-              <img key={rightPreviewUrl} src={rightPreviewUrl} alt={posePreviewUrl ? pose : locInfo.label} style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block', animation: 'locFadeIn 0.25s ease' }} />
+              <img loading="lazy" decoding="async" key={rightPreviewUrl} src={rightPreviewUrl} alt={posePreviewUrl ? pose : locInfo.label} style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block', animation: 'locFadeIn 0.25s ease' }} />
               {rightMode === 'location' && (
                 <div style={{ position: 'absolute', bottom: 0, left: 0, right: 0, background: 'linear-gradient(transparent,rgba(0,0,0,0.65))', padding: '28px 12px 12px', zIndex: 1 }}>
                   <div style={{ fontSize: 13, fontWeight: 700, color: '#fff', marginBottom: 5 }}>{locInfo.icon} {locInfo.label}</div>
@@ -945,7 +945,7 @@ export default function PhotoStudioPanel({ influencer, onGoToWardrobe, onUseAsSt
         >
           <button onClick={() => setExpandedImg(null)} style={{ position: 'fixed', top: 18, right: 18, width: 36, height: 36, borderRadius: '50%', background: 'rgba(255,255,255,0.14)', color: '#fff', border: 'none', cursor: 'pointer', fontSize: 18, display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1 }}>✕</button>
           <div onClick={e => e.stopPropagation()} style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 12, cursor: 'default' }}>
-            <img src={expandedImg} alt="" onClick={() => setExpandedImg(null)} style={{ maxWidth: '92vw', maxHeight: '82vh', objectFit: 'contain', borderRadius: 14, boxShadow: '0 32px 80px rgba(0,0,0,0.6)', cursor: 'zoom-out', display: 'block' }} />
+            <img loading="lazy" decoding="async" src={expandedImg} alt="" onClick={() => setExpandedImg(null)} style={{ maxWidth: '92vw', maxHeight: '82vh', objectFit: 'contain', borderRadius: 14, boxShadow: '0 32px 80px rgba(0,0,0,0.6)', cursor: 'zoom-out', display: 'block' }} />
             <button
               onClick={() => downloadImage(expandedImg, 'photo.jpg')}
               style={{ padding: '10px 28px', borderRadius: 980, fontSize: 13, fontWeight: 700, background: 'linear-gradient(135deg,#EC4899,#8B5CF6)', color: '#fff', border: 'none', cursor: 'pointer', fontFamily: 'inherit', boxShadow: '0 4px 20px rgba(139,92,246,0.4)' }}
@@ -1308,7 +1308,7 @@ export default function PhotoStudioPanel({ influencer, onGoToWardrobe, onUseAsSt
                     )}
                     {/* Image — click to fullscreen */}
                     <div style={{ position: 'relative' }}>
-                      <img
+                      <img loading="lazy" decoding="async"
                         src={slot.image}
                         alt={`Prop ${idx + 1}`}
                         onClick={() => setExpandedImg(slot.image)}
@@ -1465,7 +1465,7 @@ export default function PhotoStudioPanel({ influencer, onGoToWardrobe, onUseAsSt
                         onMouseEnter={e => e.currentTarget.style.borderColor = '#8B5CF6'}
                         onMouseLeave={e => e.currentTarget.style.borderColor = 'var(--border)'}
                       >
-                        <img src={deal.characterSheet || deal.image} alt={deal.brand} style={{ width: '100%', aspectRatio: '4/3', objectFit: 'cover', display: 'block' }} />
+                        <img loading="lazy" decoding="async" src={deal.characterSheet || deal.image} alt={deal.brand} style={{ width: '100%', aspectRatio: '4/3', objectFit: 'cover', display: 'block' }} />
                         <div style={{ padding: '7px 10px' }}>
                           <div style={{ fontSize: 12, fontWeight: 700, color: 'var(--text-primary)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{deal.brand}</div>
                           {deal.category && <div style={{ fontSize: 10, color: 'var(--text-tertiary)', marginTop: 1 }}>{deal.category}</div>}
@@ -1590,7 +1590,7 @@ export default function PhotoStudioPanel({ influencer, onGoToWardrobe, onUseAsSt
               }}>
                 {isReady ? (
                   <>
-                    <img src={url} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }} />
+                    <img loading="lazy" decoding="async" src={url} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }} />
                     <button onClick={async(e)=>{e.stopPropagation();try{const res=await fetch(url);const blob=await res.blob();const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download=`photo-studio-${i+1}.jpg`;a.click();setTimeout(()=>URL.revokeObjectURL(a.href),60000)}catch{const a=document.createElement('a');a.href=url;a.download=`photo-studio-${i+1}.jpg`;a.click()}}} style={{ position: 'absolute', bottom: 8, right: 8, padding: '5px 10px', borderRadius: 7, background: 'rgba(0,0,0,0.65)', backdropFilter: 'blur(8px)', color: '#fff', fontSize: 11, fontWeight: 600, border: 'none', cursor: 'pointer', fontFamily: 'inherit' }}>↓</button>
                     {onUseAsStartFrame && (
                       <button onClick={()=>onUseAsStartFrame(url)} style={{ position: 'absolute', bottom: 8, left: 8, padding: '5px 10px', borderRadius: 7, background: 'linear-gradient(135deg,rgba(236,72,153,0.85),rgba(139,92,246,0.85))', backdropFilter: 'blur(8px)', color: '#fff', fontSize: 11, fontWeight: 700, border: 'none', cursor: 'pointer', fontFamily: 'inherit', display: 'flex', alignItems: 'center', gap: 4 }}>

@@ -251,7 +251,7 @@ function HeroBanner({ influencer, onDelete, pct, onUpdate }) {
             transition:'border-radius 0.2s',
           }}>
             {influencer.mainImage
-              ?<img src={influencer.mainImage} alt="" style={{width:'100%',height:'100%',objectFit:'cover'}}/>
+              ?<img loading="lazy" decoding="async" src={influencer.mainImage} alt="" style={{width:'100%',height:'100%',objectFit:'cover'}}/>
               :<span style={{fontSize:24,fontWeight:800,color:ac,letterSpacing:'-1px'}}>
                 {influencer.name[0]?.toUpperCase()}
               </span>
@@ -451,7 +451,7 @@ function CharacterSheetSlot({ influencer, onSave, onLightbox }) {
         {loading && <GenLoadingOverlay elapsed={elapsed} onCancel={cancelGeneration}/>}
         {value ? (
           <>
-            <img src={value} alt="Character sheet" onClick={onLightbox} style={{width:'100%',height:'100%',objectFit:'contain',borderRadius:10,cursor:'zoom-in',display:'block',background:'var(--bg-tertiary)'}}/>
+            <img loading="lazy" decoding="async" src={value} alt="Character sheet" onClick={onLightbox} style={{width:'100%',height:'100%',objectFit:'contain',borderRadius:10,cursor:'zoom-in',display:'block',background:'var(--bg-tertiary)'}}/>
 
             {/* Delete — top right on hover */}
             <button onClick={()=>onSave(null)} style={{
@@ -658,7 +658,7 @@ function CloseUpSlot({ influencer, imageKey, label, onSave, onLightbox, promptFn
         {loading && <GenLoadingOverlay elapsed={elapsed} onCancel={cancelGeneration} maxLabel="6 min"/>}
         {value ? (
           <>
-            <img
+            <img loading="lazy" decoding="async"
               src={value} alt={label} onClick={onLightbox}
               style={{ width:'100%', height:'100%', objectFit:fit, borderRadius:10, cursor:'zoom-in', display:'block', background:'var(--bg-tertiary)' }}
             />
@@ -827,7 +827,7 @@ function MainImageSlot({ influencer, onChange, onLightbox }) {
         {loading && <GenLoadingOverlay elapsed={elapsed} maxLabel="5 min 30 sec" />}
         {value ? (
           <>
-            <img src={value} alt="Main image" onClick={onLightbox}
+            <img loading="lazy" decoding="async" src={value} alt="Main image" onClick={onLightbox}
               style={{ width: '100%', height: '100%', objectFit: 'cover', borderRadius: 10, cursor: 'zoom-in', display: 'block' }} />
             {/* Delete — top right on hover */}
             <button onClick={() => onChange(null)} style={{
@@ -1334,7 +1334,7 @@ function ScriptsSection({ scripts=[], influencerPrompt='', onChange, initialExpa
                         onMouseEnter={e=>{const r=e.currentTarget.getBoundingClientRect();setHoveredRef({ref,rect:r})}}
                         onMouseLeave={()=>setHoveredRef(null)}>
                         <div style={{width:54,height:70,borderRadius:9,overflow:'hidden',border:`1.5px solid ${hoveredRef?.ref===ref?'var(--accent,#8B5CF6)':'var(--border)'}`,background:'var(--bg-tertiary)',transition:'border-color 0.15s',cursor:'pointer'}}>
-                          <img src={ref.url} alt={ref.label} style={{width:'100%',height:'100%',objectFit:'cover',objectPosition:'top',display:'block'}}/>
+                          <img loading="lazy" decoding="async" src={ref.url} alt={ref.label} style={{width:'100%',height:'100%',objectFit:'cover',objectPosition:'top',display:'block'}}/>
                         </div>
                         <span style={{fontSize:9,fontWeight:600,color:'var(--text-tertiary)',textAlign:'center',maxWidth:54,overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{ref.label}</span>
                       </div>
@@ -1416,7 +1416,7 @@ function ScriptsSection({ scripts=[], influencerPrompt='', onChange, initialExpa
                 animation:'refPopIn 0.12s ease',
               }}>
                 <div style={{width:'100%',background:'var(--bg-tertiary)',display:'flex',alignItems:'center',justifyContent:'center'}}>
-                  <img src={hoveredRef.ref.url} alt={hoveredRef.ref.label} style={{maxWidth:'100%',maxHeight:260,display:'block',objectFit:'contain'}}/>
+                  <img loading="lazy" decoding="async" src={hoveredRef.ref.url} alt={hoveredRef.ref.label} style={{maxWidth:'100%',maxHeight:260,display:'block',objectFit:'contain'}}/>
                 </div>
                 <div style={{padding:'6px 10px',fontSize:11,fontWeight:600,color:'var(--text-secondary)',borderTop:'1px solid var(--border)'}}>{hoveredRef.ref.label}</div>
               </div>,
@@ -1725,7 +1725,7 @@ function WardrobeLookReferenceCard({ reference, onChange }) {
       >
         {reference.image ? (
           <>
-            <img src={reference.image} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }} />
+            <img loading="lazy" decoding="async" src={reference.image} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }} />
             <button
               onClick={e => { e.stopPropagation(); onChange(createWardrobeLookReference()) }}
               style={{
@@ -1935,7 +1935,7 @@ function WardrobeGenerator({ influencer, onAdd }) {
           onMouseEnter={e => { e.currentTarget.querySelector('img').style.transform = 'scale(1.03)' }}
           onMouseLeave={e => { e.currentTarget.querySelector('img').style.transform = 'scale(1)' }}
         >
-          <img src={result.url} alt="" style={{ width: '100%', display: 'block', aspectRatio: '16/9', objectFit: 'cover', transition: 'transform 0.3s ease' }} />
+          <img loading="lazy" decoding="async" src={result.url} alt="" style={{ width: '100%', display: 'block', aspectRatio: '16/9', objectFit: 'cover', transition: 'transform 0.3s ease' }} />
           <button
             onClick={e => { e.stopPropagation(); downloadImage(result.url, `${(result.name || 'look').replace(/\s+/g, '-')}.jpg`) }}
             style={{
@@ -2028,7 +2028,7 @@ function WardrobeGenerator({ influencer, onAdd }) {
               </label>
               {useCreationStyleRef && (
                 <div style={{ display: 'grid', gridTemplateColumns: '64px 1fr', gap: 10, alignItems: 'center', padding: 8, borderRadius: 10, border: '1px solid var(--border)', background: 'var(--bg)' }}>
-                  <img src={creationParams.styleRef} alt="" style={{ width: 64, height: 64, borderRadius: 8, objectFit: 'cover', display: 'block' }} />
+                  <img loading="lazy" decoding="async" src={creationParams.styleRef} alt="" style={{ width: 64, height: 64, borderRadius: 8, objectFit: 'cover', display: 'block' }} />
                   <div style={{ minWidth: 0 }}>
                     <div style={{ fontSize: 12, fontWeight: 700, color: 'var(--text-primary)', marginBottom: 3 }}>Creation style reference</div>
                     <div style={{ fontSize: 11.5, color: 'var(--text-tertiary)', lineHeight: 1.35, overflow: 'hidden', textOverflow: 'ellipsis' }}>
@@ -2095,7 +2095,7 @@ function WorldDropCard({ drop, editing, editName, onEditName, onStartEdit, onCom
       >
         {drop.image
           ? <>
-              <img src={drop.image} alt="" style={{ width:'100%', height:'100%', objectFit:'cover', display:'block' }}/>
+              <img loading="lazy" decoding="async" src={drop.image} alt="" style={{ width:'100%', height:'100%', objectFit:'cover', display:'block' }}/>
               <div style={{ position:'absolute', inset:0, background:'rgba(0,0,0,0)', transition:'background 0.15s' }}
                 onMouseEnter={e=>{e.currentTarget.style.background='rgba(0,0,0,0.2)'}}
                 onMouseLeave={e=>{e.currentTarget.style.background='rgba(0,0,0,0)'}}
@@ -2332,7 +2332,7 @@ function BrandDealCard({ deal, editingBrand, editBrand, onEditBrand, onStartEdit
       >
         {displayImage
           ? <>
-              <img src={displayImage} alt="" style={{width:'100%',height:'100%',objectFit:'cover',display:'block'}}/>
+              <img loading="lazy" decoding="async" src={displayImage} alt="" style={{width:'100%',height:'100%',objectFit:'cover',display:'block'}}/>
               {!generating && (
                 <div style={{position:'absolute',inset:0,background:'rgba(0,0,0,0)',transition:'background 0.15s'}}
                   onMouseEnter={e=>{e.currentTarget.style.background='rgba(0,0,0,0.2)'}}
@@ -2389,7 +2389,7 @@ function BrandDealCard({ deal, editingBrand, editBrand, onEditBrand, onStartEdit
       {(deal.images?.length > 1) && (
         <div style={{display:'flex',gap:4,padding:'6px 8px 0',overflowX:'auto'}}>
           {deal.images.map((img,i) => (
-            <img key={i} src={img} alt="" style={{width:36,height:36,borderRadius:6,objectFit:'cover',flexShrink:0,opacity:i===0?0.5:1}} title={i===0?'Main (shown above)':'Extra angle'}/>
+            <img loading="lazy" decoding="async" key={i} src={img} alt="" style={{width:36,height:36,borderRadius:6,objectFit:'cover',flexShrink:0,opacity:i===0?0.5:1}} title={i===0?'Main (shown above)':'Extra angle'}/>
           ))}
         </div>
       )}
@@ -2483,7 +2483,7 @@ function NewBrandModal({ onClose, onSave }) {
             <div style={{display:'grid',gridTemplateColumns:'repeat(3,1fr)',gap:8}}>
               {images.map((img,i) => (
                 <div key={i} style={{position:'relative',aspectRatio:'1',borderRadius:8,overflow:'hidden',background:'var(--bg-tertiary)'}}>
-                  <img src={img} alt="" style={{width:'100%',height:'100%',objectFit:'cover'}}/>
+                  <img loading="lazy" decoding="async" src={img} alt="" style={{width:'100%',height:'100%',objectFit:'cover'}}/>
                   <button onClick={()=>setImages(prev=>prev.filter((_,j)=>j!==i))}
                     style={{position:'absolute',top:4,right:4,width:18,height:18,borderRadius:'50%',background:'rgba(0,0,0,0.6)',color:'#fff',fontSize:11,border:'none',cursor:'pointer',display:'flex',alignItems:'center',justifyContent:'center'}}>×</button>
                   {i===0&&<div style={{position:'absolute',bottom:4,left:4,fontSize:9,fontWeight:700,background:'rgba(0,0,0,0.6)',color:'#fff',padding:'2px 5px',borderRadius:4}}>MAIN</div>}
@@ -2547,7 +2547,7 @@ function ImportBrandDealsModal({ deals, existingBrands, onImport, onClose }) {
                 >
                   <div style={{ aspectRatio:'16/9',background:'var(--bg-tertiary)',position:'relative' }}>
                     {thumb
-                      ? <img src={thumb} alt={deal.brand} style={{ width:'100%',height:'100%',objectFit:'cover',display:'block' }}/>
+                      ? <img loading="lazy" decoding="async" src={thumb} alt={deal.brand} style={{ width:'100%',height:'100%',objectFit:'cover',display:'block' }}/>
                       : <div style={{ width:'100%',height:'100%',display:'flex',alignItems:'center',justifyContent:'center',fontSize:28,fontWeight:800,color:'var(--text-tertiary)',opacity:0.25 }}>{deal.brand[0]}</div>
                     }
                     {isSelected && (
@@ -2957,7 +2957,7 @@ function CSProductSlot({ value, onChange, dragOver, setDragOver, fileRef, label 
     <div style={{width:size,flexShrink:0}}>
       {value ? (
         <div style={{position:'relative'}}>
-          <img src={value} style={{
+          <img loading="lazy" decoding="async" src={value} style={{
             width:size,height:size,objectFit:'contain',borderRadius:14,display:'block',
             border:'1.5px solid var(--border)',background:'var(--bg-tertiary)',
           }}/>
@@ -3293,7 +3293,7 @@ function WardrobeChipWithHover({ slot, active, onClick }) {
           display: 'flex', alignItems: 'center', justifyContent: 'center',
         }}>
           {slot.image
-            ? <img src={slot.image} alt={slot.name} style={{ width: '100%', height: '100%', objectFit: 'cover', objectPosition: 'top', display: 'block' }} />
+            ? <img loading="lazy" decoding="async" src={slot.image} alt={slot.name} style={{ width: '100%', height: '100%', objectFit: 'cover', objectPosition: 'top', display: 'block' }} />
             : <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="var(--text-secondary)" strokeWidth="1.5" opacity="0.5"><circle cx="12" cy="8" r="3"/><path d="M6 20v-2a6 6 0 0 1 12 0v2"/></svg>
           }
         </div>
@@ -3314,7 +3314,7 @@ function WardrobeChipWithHover({ slot, active, onClick }) {
             background: 'var(--surface)',
           }}
         >
-          <img src={slot.image} alt={slot.name} style={{ width: '100%', aspectRatio: '16/9', objectFit: 'cover', display: 'block' }} />
+          <img loading="lazy" decoding="async" src={slot.image} alt={slot.name} style={{ width: '100%', aspectRatio: '16/9', objectFit: 'cover', display: 'block' }} />
           <div style={{ padding: '5px 8px', fontSize: 10, fontWeight: 600, color: 'var(--text-primary)' }}>{slot.name}</div>
         </div>,
         document.body
@@ -3430,7 +3430,7 @@ function MediaLightbox({ entry, onClose, onDownload, onReuse, onDelete, initialT
             </div>
           </div>
         ) : (
-          <img src={entry.url} alt={entry.label}
+          <img loading="lazy" decoding="async" src={entry.url} alt={entry.label}
             style={{width:'100%', display:'block', objectFit:'contain', maxHeight:'80vh'}}/>
         )}
         <div style={{padding:'10px 12px', display:'flex', gap:8, background:'var(--surface)'}}>
@@ -3516,7 +3516,7 @@ function HistoryCard({ entry, onDelete, onDownload, isSelected, onSelect, showSe
           {isVideo
             ? <video ref={videoRef} src={entry.url} preload="metadata" muted playsInline
                 style={{width:'100%', height:'100%', objectFit:'cover', display:'block'}}/>
-            : <img src={entry.url} alt={entry.label}
+            : <img loading="lazy" decoding="async" src={entry.url} alt={entry.label}
                 style={{width:'100%', height:'100%', objectFit:'cover', display:'block'}}/>
           }
           {isVideo && !hovered && (
@@ -4720,7 +4720,7 @@ ${shotsWithBeats.join('\n\n')}`
         }}>
           <div style={{display:'flex'}}>
             {allImages.slice(0,3).map((img,i)=>(
-              <img key={img.key} src={img.url} style={{
+              <img loading="lazy" decoding="async" key={img.key} src={img.url} style={{
                 width:26,height:26,borderRadius:'50%',objectFit:'cover',
                 border:'2px solid var(--surface)',marginLeft:i>0?-8:0,flexShrink:0,
               }}/>
@@ -4756,7 +4756,7 @@ ${shotsWithBeats.join('\n\n')}`
                       {key:'closeUpImage2',      label:'Feature Sheet',   url:influencer.closeUpImage2},
                     ].filter(img=>img.url).map(img=>(
                       <div key={img.key} style={{display:'flex',flexDirection:'column',alignItems:'center',gap:5}}>
-                        <img src={img.url} alt={img.label} style={{
+                        <img loading="lazy" decoding="async" src={img.url} alt={img.label} style={{
                           width:54,height:76,objectFit:'cover',objectPosition:'top',
                           borderRadius:7,border:'1px solid var(--border)',flexShrink:0,
                         }}/>
@@ -4805,7 +4805,7 @@ ${shotsWithBeats.join('\n\n')}`
       {/* Start frame */}
       {startFrameUrl && (
         <div style={{display:'flex',alignItems:'center',gap:10,padding:'8px 12px',borderRadius:10,background:'rgba(236,72,153,0.06)',border:'1px solid rgba(236,72,153,0.2)'}}>
-          <img src={startFrameUrl} alt="Start frame" style={{width:36,height:48,objectFit:'cover',objectPosition:'top',borderRadius:6,border:'1px solid rgba(236,72,153,0.3)',flexShrink:0}}/>
+          <img loading="lazy" decoding="async" src={startFrameUrl} alt="Start frame" style={{width:36,height:48,objectFit:'cover',objectPosition:'top',borderRadius:6,border:'1px solid rgba(236,72,153,0.3)',flexShrink:0}}/>
           <div style={{flex:1,minWidth:0}}>
             <div style={{fontSize:11,fontWeight:700,color:'#EC4899',marginBottom:2}}>Start Frame</div>
             <div style={{fontSize:11,color:'var(--text-tertiary)'}}>Video begins from this photo</div>
@@ -4825,7 +4825,7 @@ ${shotsWithBeats.join('\n\n')}`
             }}>
               <div style={{display:'flex',alignItems:'center',gap:8,marginBottom:6}}>
                 {[h.productRef1, h.productRef2, h.productRef3].filter(Boolean).map((img,pi)=>(
-                  <img key={pi} src={img} style={{
+                  <img loading="lazy" decoding="async" key={pi} src={img} style={{
                     width:26,height:26,borderRadius:6,objectFit:'contain',flexShrink:0,
                     border:'1px solid var(--border)',background:'var(--bg)',
                   }}/>
@@ -4931,7 +4931,7 @@ ${shotsWithBeats.join('\n\n')}`
                       onMouseLeave={()=>setDealPopup(null)}
                       onClick={()=>assignProduct(activeUrl)}
                     >
-                      <img src={activeUrl} style={{width:64,height:80,objectFit:'cover',objectPosition:'top',borderRadius:9,border:'1.5px solid var(--border)',display:'block'}} alt={deal.brand}/>
+                      <img loading="lazy" decoding="async" src={activeUrl} style={{width:64,height:80,objectFit:'cover',objectPosition:'top',borderRadius:9,border:'1.5px solid var(--border)',display:'block'}} alt={deal.brand}/>
                     </div>
                     <div style={{fontSize:9,color:'var(--text-tertiary)',width:64,overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap',textAlign:'center'}}>{deal.brand}</div>
                     {hasSheet && (
@@ -4968,7 +4968,7 @@ ${shotsWithBeats.join('\n\n')}`
             display:'flex',flexDirection:'column',gap:8,alignItems:'center',
             width:260,
           }}>
-            <img src={dealPopup.url} style={{maxWidth:260,maxHeight:200,width:'auto',height:'auto',objectFit:'contain',borderRadius:9,display:'block'}}/>
+            <img loading="lazy" decoding="async" src={dealPopup.url} style={{maxWidth:260,maxHeight:200,width:'auto',height:'auto',objectFit:'contain',borderRadius:9,display:'block'}}/>
             <div style={{fontSize:11,fontWeight:700,color:'var(--text-primary)'}}>{dealPopup.brand}</div>
             <div style={{fontSize:10,color:'var(--text-tertiary)'}}>{dealPopup.useSheet && dealPopup.hasSheet ? 'Character sheet' : 'Original image'}</div>
           </div>,
@@ -5102,7 +5102,7 @@ ${shotsWithBeats.join('\n\n')}`
               </div>
               {selectedHome && (
                 <div style={{display:'flex',gap:12,alignItems:'center',padding:'10px 12px',background:'var(--bg-tertiary)',borderRadius:10,marginBottom:10}}>
-                  <img src={selectedHome.image} alt={selectedHome.name} style={{width:72,height:54,objectFit:'cover',borderRadius:8,flexShrink:0}}/>
+                  <img loading="lazy" decoding="async" src={selectedHome.image} alt={selectedHome.name} style={{width:72,height:54,objectFit:'cover',borderRadius:8,flexShrink:0}}/>
                   <div>
                     <div style={{fontSize:12,fontWeight:700,color:'var(--text-primary)'}}>{selectedHome.name}</div>
                     <div style={{fontSize:11,color:'var(--text-tertiary)',marginTop:2}}>Sent as location reference · scene will be set in this environment</div>
@@ -5851,7 +5851,7 @@ ${shotsWithBeats.join('\n\n')}`
                 background:'var(--bg)',border:'1.5px solid var(--border)',
               }}>
                 {ytId(v.videoUrl) ? (
-                  <img src={`https://img.youtube.com/vi/${ytId(v.videoUrl)}/mqdefault.jpg`} alt=""
+                  <img loading="lazy" decoding="async" src={`https://img.youtube.com/vi/${ytId(v.videoUrl)}/mqdefault.jpg`} alt=""
                     style={{width:100,height:60,objectFit:'cover',borderRadius:8,flexShrink:0}}/>
                 ) : (
                   <div style={{width:100,height:60,borderRadius:8,background:'rgba(139,92,246,0.1)',flexShrink:0,display:'flex',alignItems:'center',justifyContent:'center'}}>
@@ -6249,7 +6249,7 @@ export default function Influencers() {
                       <Ring pct={pct} size={42}/>
                       <div style={{position:'absolute',top:3,left:3,width:34,height:34,borderRadius:inf.mainImage?'50%':8,overflow:'hidden',background:'rgba(255,255,255,0.08)',display:'flex',alignItems:'center',justifyContent:'center',transition:'border-radius 0.2s'}}>
                         {inf.mainImage
-                          ?<img src={inf.mainImage} alt="" style={{width:'100%',height:'100%',objectFit:'cover'}}/>
+                          ?<img loading="lazy" decoding="async" src={inf.mainImage} alt="" style={{width:'100%',height:'100%',objectFit:'cover'}}/>
                           :<span style={{fontSize:14,fontWeight:700,color:SD.dim}}>{inf.name[0]?.toUpperCase()}</span>
                         }
                       </div>
@@ -6543,7 +6543,7 @@ export default function Influencers() {
         <main style={{flex:1,position:'relative',display:'flex',alignItems:'center',justifyContent:'center',overflow:'hidden'}}>
           <div style={{position:'absolute',inset:0,display:'grid',gridTemplateColumns:'repeat(3,1fr)',gap:3,opacity:0.18,pointerEvents:'none',transform:'scale(1.04)'}}>
             {['/inf/i1.png','/inf/i4.jpg','/inf/i2.png','/inf/i5.png','/inf/i3.jpg','/inf/i6.jpg'].map((src,i)=>(
-              <img key={i} src={src} alt="" style={{width:'100%',height:'100%',objectFit:'cover'}}/>
+              <img loading="lazy" decoding="async" key={i} src={src} alt="" style={{width:'100%',height:'100%',objectFit:'cover'}}/>
             ))}
           </div>
           <div style={{position:'absolute',inset:0,backdropFilter:'blur(18px)',WebkitBackdropFilter:'blur(18px)',background:'rgba(255,255,255,0.82)',pointerEvents:'none'}}/>

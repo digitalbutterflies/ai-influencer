@@ -1,0 +1,29 @@
+# Cloudflare Workers Static Assets header rules.
+# Vite-built /assets/* files are content-hashed, so they can be cached
+# permanently — a content change produces a new filename.
+/assets/*
+  Cache-Control: public, max-age=31536000, immutable
+
+# Seed influencer media — stable paths, safe to cache aggressively.
+/brad/*
+  Cache-Control: public, max-age=31536000, immutable
+/camila/*
+  Cache-Control: public, max-age=31536000, immutable
+/inf/*
+  Cache-Control: public, max-age=31536000, immutable
+/inspiration/*
+  Cache-Control: public, max-age=31536000, immutable
+/jake/*
+  Cache-Control: public, max-age=31536000, immutable
+/kayla/*
+  Cache-Control: public, max-age=31536000, immutable
+/marcus/*
+  Cache-Control: public, max-age=31536000, immutable
+/prime/*
+  Cache-Control: public, max-age=31536000, immutable
+/hf-icon.png
+  Cache-Control: public, max-age=31536000, immutable
+
+# Seed data changes rarely — cache a week, allow revalidation.
+/seeds.json
+  Cache-Control: public, max-age=604800

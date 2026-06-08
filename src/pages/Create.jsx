@@ -179,7 +179,7 @@ function FloatingCards() {
             boxShadow: '0 24px 64px rgba(0,0,0,0.14), 0 0 0 1px rgba(0,0,0,0.04)',
             opacity: fading[i] ? 0 : 1, transition: 'opacity 0.7s ease',
           }}>
-            <img src={srcs[i]} alt="" style={{ width: '100%', aspectRatio: '2/3', objectFit: 'cover', display: 'block' }} />
+            <img loading="lazy" decoding="async" src={srcs[i]} alt="" style={{ width: '100%', aspectRatio: '2/3', objectFit: 'cover', display: 'block' }} />
           </div>
         </div>
       ))}
@@ -347,7 +347,7 @@ function RefSlot({ label, hint, value, onChange, note, onNoteChange, notePlaceho
           {...dropProps}
           style={{ position: 'relative', borderRadius: 16, overflow: 'hidden', aspectRatio: '3/4', boxShadow: L.card, outline: dragging ? '2.5px dashed #8B5CF6' : 'none', transition: 'outline 0.15s' }}
         >
-          <img src={value} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block', opacity: dragging ? 0.5 : 1, transition: 'opacity 0.15s' }} />
+          <img loading="lazy" decoding="async" src={value} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block', opacity: dragging ? 0.5 : 1, transition: 'opacity 0.15s' }} />
           {dragging && (
             <div style={{ position: 'absolute', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'rgba(139,92,246,0.15)', pointerEvents: 'none' }}>
               <span style={{ fontSize: 13, fontWeight: 700, color: '#7C3AED' }}>Drop to replace</span>
@@ -1077,7 +1077,7 @@ function Lightbox({ url, index, onClose }) {
         position: 'relative', display: 'flex',
         animation: 'lbIn 0.35s cubic-bezier(0.34,1.42,0.64,1)',
       }}>
-        <img src={url} alt="" style={{ maxHeight: '90vh', maxWidth: '88vw', borderRadius: 20, display: 'block', objectFit: 'contain', boxShadow: '0 40px 120px rgba(0,0,0,0.7)' }} />
+        <img loading="lazy" decoding="async" src={url} alt="" style={{ maxHeight: '90vh', maxWidth: '88vw', borderRadius: 20, display: 'block', objectFit: 'contain', boxShadow: '0 40px 120px rgba(0,0,0,0.7)' }} />
         <button onClick={onClose} style={{
           position: 'absolute', top: -14, right: -14,
           width: 36, height: 36, borderRadius: '50%',
@@ -1144,7 +1144,7 @@ function VariationCard({ url, selected, gc, onSelect, index, landscape, onExpand
         transformOrigin: landscape ? 'center' : 'bottom center',
       }}
     >
-      <img src={url} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }} />
+      <img loading="lazy" decoding="async" src={url} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }} />
 
       {/* Number badge */}
       {!selected && (
@@ -1225,7 +1225,7 @@ function ProviderIcon({ provider, version }) {
       </svg>
     </div>
   )
-  return <img src="/hf-icon.png" alt="" style={{ width: 36, height: 36, borderRadius: 10, display: 'block', flexShrink: 0 }} />
+  return <img loading="lazy" decoding="async" src="/hf-icon.png" alt="" style={{ width: 36, height: 36, borderRadius: 10, display: 'block', flexShrink: 0 }} />
 }
 
 // ── Step 5: Generate ──────────────────────────────────────────
@@ -1712,7 +1712,7 @@ export default function Create() {
               backdropFilter: 'blur(12px)',
               display: 'flex', alignItems: 'center', gap: 10,
             }}>
-              <img src="/hf-icon.png" alt="" style={{ width: 32, height: 32, borderRadius: 9, flexShrink: 0, boxShadow: '0 2px 8px rgba(201,255,0,0.5)', display: 'block' }} />
+              <img loading="lazy" decoding="async" src="/hf-icon.png" alt="" style={{ width: 32, height: 32, borderRadius: 9, flexShrink: 0, boxShadow: '0 2px 8px rgba(201,255,0,0.5)', display: 'block' }} />
               <span style={{ flex: 1, fontSize: 13, fontWeight: 700, color: 'var(--text-primary)', whiteSpace: 'nowrap' }}>Connect to Higgsfield</span>
               <button onClick={connectFromBanner} style={{
                 flexShrink: 0, padding: '7px 14px', borderRadius: 8,

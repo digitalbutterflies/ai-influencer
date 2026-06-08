@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, lazy, Suspense } from 'react'
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
 import { ThemeProvider, useTheme } from './context/theme'
 import { StoreProvider } from './store'
@@ -6,12 +6,14 @@ import { silentRefreshHFToken } from './utils/higgsfieldAuth'
 import { handleLegacyStorageMigration } from './utils/legacyStorageMigration'
 import Nav from './components/Nav'
 import Landing from './pages/Landing'
-import Influencers from './pages/Influencers'
-import Inspiration from './pages/Inspiration'
-import BrandDeals from './pages/BrandDeals'
-import Create from './pages/Create'
-import Settings from './pages/Settings'
-import AuthCallback from './pages/AuthCallback'
+
+// Heavy studio pages are code-split so the landing page does not download them.
+const Influencers = lazy(() => import('./pages/Influencers'))
+const Inspiration = lazy(() => import('./pages/Inspiration'))
+const BrandDeals = lazy(() => import('./pages/BrandDeals'))
+const Create = lazy(() => import('./pages/Create'))
+const Settings = lazy(() => import('./pages/Settings'))
+const AuthCallback = lazy(() => import('./pages/AuthCallback'))
 
 const FEEDBACK_FORM_URL = 'https://forms.gle/p5cBXw4sYaHPdcANA'
 
@@ -66,16 +68,18 @@ export default function App() {
     <StoreProvider>
     <BrowserRouter>
       <Nav />
-      <Routes>
-        <Route path="/" element={<Landing />} />
-        <Route path="/influencers" element={<Influencers />} />
-        <Route path="/inspiration" element={<Inspiration />} />
-        <Route path="/brand-deals" element={<BrandDeals />} />
-        <Route path="/create" element={<Create />} />
-        <Route path="/settings" element={<Settings />} />
-        <Route path="/auth/callback" element={<AuthCallback />} />
-        <Route path="*" element={<Navigate to="/" replace />} />
-      </Routes>
+      <Suspense fallback={<div style={{ minHeight: '60vh' }} />}>
+        <Routes>
+          <Route path="/" element={<Landing />} />
+          <Route path="/influencers" element={<Influencers />} />
+          <Route path="/inspiration" element={<Inspiration />} />
+          <Route path="/brand-deals" element={<BrandDeals />} />
+          <Route path="/create" element={<Create />} />
+          <Route path="/settings" element={<Settings />} />
+          <Route path="/auth/callback" element={<AuthCallback />} />
+          <Route path="*" element={<Navigate to="/" replace />} />
+        </Routes>
+      </Suspense>
       <FeedbackButton />
     </BrowserRouter>
     </StoreProvider>

@@ -86,7 +86,7 @@ function NewDealModal({ onClose, onSave }) {
             }}
           >
             {image
-              ? <img src={image} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+              ? <img loading="lazy" decoding="async" src={image} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
               : <>
                   <span style={{ fontSize: 22, opacity: dragging ? 0.6 : 0.25 }}>+</span>
                   <span style={{ fontSize: 12, color: 'var(--text-tertiary)' }}>{dragging ? 'Drop to upload' : 'Upload or drag & drop'}</span>
@@ -158,7 +158,7 @@ function DealCard({ deal, generating, progress, onDelete, onOpen, onRename, onGe
         }}
       >
         {displayImage
-          ? <img
+          ? <img loading="lazy" decoding="async"
               src={displayImage}
               alt={deal.brand}
               style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block', transition: 'transform 0.3s' }}

@@ -1,4 +1,4 @@
-import { useState, useEffect, createContext, useContext } from 'react'
+import { useState, useEffect, useMemo, createContext, useContext } from 'react'
 
 // Generic small-value localStorage hook (inspiration boards, brand deals, etc.)
 function useLocalStorage(key, initial) {
@@ -518,10 +518,17 @@ export function StoreProvider({ children }) {
       .catch(e => console.warn('[seeds] failed to load:', e))
   }, []) // eslint-disable-line
 
+  // Memoize each context value so consumers only re-render when their own
+  // data changes (the [value, setValue] tuples are otherwise new every render).
+  // useState setters are stable, so the data value is a sufficient dependency.
+  const inflValue  = useMemo(() => influencerStore,  [influencerStore[0]])  // eslint-disable-line
+  const inspValue  = useMemo(() => inspirationState, [inspirationState[0]]) // eslint-disable-line
+  const dealsValue = useMemo(() => brandDealsState,  [brandDealsState[0]])  // eslint-disable-line
+
   return (
-    <InfluencersCtx.Provider value={influencerStore}>
-      <InspirationCtx.Provider value={inspirationState}>
-        <BrandDealsCtx.Provider value={brandDealsState}>
+    <InfluencersCtx.Provider value={inflValue}>
+      <InspirationCtx.Provider value={inspValue}>
+        <BrandDealsCtx.Provider value={dealsValue}>
           {children}
         </BrandDealsCtx.Provider>
       </InspirationCtx.Provider>

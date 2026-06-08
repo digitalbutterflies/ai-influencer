@@ -47,6 +47,8 @@ export default function MasonryGrid({ images = [], onChange, emptyLabel = 'Add i
               <img
                 src={src}
                 alt=""
+                loading="lazy"
+                decoding="async"
                 onClick={() => setLightbox(i)}
                 style={{ width: '100%', display: 'block' }}
               />

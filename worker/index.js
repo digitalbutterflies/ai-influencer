@@ -185,7 +185,8 @@ async function handleImageProxy(request, url) {
         ...headers,
         'Content-Type': contentType,
         'Content-Disposition': `attachment; filename="${name}"`,
-        'Cache-Control': 'public, max-age=3600',
+        // Upstream Higgsfield/OpenAI media URLs are effectively immutable.
+        'Cache-Control': 'public, max-age=31536000, immutable',
       },
     })
   } catch (error) {

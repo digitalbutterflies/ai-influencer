@@ -165,7 +165,7 @@ export default function WardrobeDrawer({ influencer, pendingResult, onResult, on
 
         {result && (
           <>
-            <img src={result} alt="" style={{ width: '100%', aspectRatio: '16/9', objectFit: 'cover', borderRadius: 10, border: '1px solid var(--border)', display: 'block' }} />
+            <img loading="lazy" decoding="async" src={result} alt="" style={{ width: '100%', aspectRatio: '16/9', objectFit: 'cover', borderRadius: 10, border: '1px solid var(--border)', display: 'block' }} />
             <div>
               <span style={lS}>Name this look</span>
               <input value={saveName} onChange={e => setSaveName(e.target.value)} style={iS} />

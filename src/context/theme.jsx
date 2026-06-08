@@ -1,4 +1,4 @@
-import { createContext, useContext, useState, useEffect } from 'react'
+import { createContext, useContext, useState, useEffect, useMemo } from 'react'
 import { flushSync } from 'react-dom'
 
 const ThemeContext = createContext()
@@ -101,8 +101,13 @@ export function ThemeProvider({ children }) {
     vt.finished.catch(cleanup)
   }
 
+  // Memoize so theme consumers only re-render when the theme actually changes,
+  // not on every ThemeProvider render. `toggle` closes over `theme`, so it is
+  // refreshed exactly when `theme` changes — which is the only time it matters.
+  const value = useMemo(() => ({ theme, toggle, isDark: theme === 'dark' }), [theme]) // eslint-disable-line
+
   return (
-    <ThemeContext.Provider value={{ theme, toggle, isDark: theme === 'dark' }}>
+    <ThemeContext.Provider value={value}>
       {children}
     </ThemeContext.Provider>
   )

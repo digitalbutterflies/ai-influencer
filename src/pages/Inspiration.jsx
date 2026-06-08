@@ -34,7 +34,7 @@ function BoardCard({ board, onSelect, onRename, onDelete }) {
         {[0,1,2,3].map(i => (
           <div key={i} style={{ overflow: 'hidden', background: 'var(--bg-tertiary)' }}>
             {previews[i]
-              ? <img src={previews[i]} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+              ? <img loading="lazy" decoding="async" src={previews[i]} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
               : <div style={{ width: '100%', height: '100%', background: 'var(--bg-tertiary)' }} />
             }
           </div>
@@ -147,7 +147,7 @@ function BoardDetail({ board, onBack, onUpdate }) {
               style={{ breakInside: 'avoid', marginBottom: 12, borderRadius: 'var(--radius-md)', overflow: 'hidden', position: 'relative', cursor: 'zoom-in' }}
               onClick={() => setLightboxIdx(i)}
             >
-              <img src={img} alt="" style={{ width: '100%', display: 'block', transition: 'transform 0.3s' }}
+              <img loading="lazy" decoding="async" src={img} alt="" style={{ width: '100%', display: 'block', transition: 'transform 0.3s' }}
                 onMouseEnter={e => e.currentTarget.style.transform = 'scale(1.03)'}
                 onMouseLeave={e => e.currentTarget.style.transform = 'scale(1)'}
               />

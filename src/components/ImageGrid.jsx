@@ -81,6 +81,8 @@ export default function ImageGrid({ images = [], onChange, emptyLabel = 'Add ima
             <img
               src={src}
               alt=""
+              loading="lazy"
+              decoding="async"
               style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block', pointerEvents: 'none' }}
             />
 
