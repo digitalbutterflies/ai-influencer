@@ -1,3 +1,7 @@
+import { callClaude } from './claudeClient'
+import { getPrompt, getTemplate, renderTemplate } from './aiConfig'
+import { DEFAULT_VISION_USER } from './aiPrompts'
+
 export function buildInfluencerSheetPrompt(inf) {
   const phys = inf.physicalDesc ? `The character: ${inf.physicalDesc}. ` : ''
   const style = inf.clothingStyle ? `Outfit: ${inf.clothingStyle}. ` : ''
@@ -27,8 +31,9 @@ export function buildCharSheetPrompt(brand, category, productDesc = null, angles
   return `Professional product character sheet on a pure white (#FFFFFF) background. The subject is a ${subject}. ${angleSpec} Create a single composite image with exactly 6 panels in a strict uniform 3-column by 2-row grid. All 6 panels are perfectly equal in size — no panel larger or smaller than another, no gaps, no overlapping, strict grid alignment. The product is visually identical across all panels — same exact colors, materials, textures, logos, design details, and proportions throughout. For any angle or surface not explicitly described, match exactly the colors, materials, and finish shown in the reference image — do not invent or assume any detail. All branding, logos, and text physically on the product are preserved and clearly visible. No annotation labels, no "Front" / "Back" / "Side" captions, no text overlays of any kind. Studio product photography: soft even lighting, sharp focus throughout, perfectly clean white background, professional commercial quality. 16:9 landscape format.`
 }
 
-export async function buildCharSheetPromptWithClaude(images, brand, category, apiKey) {
-  // images is an array of data URLs
+export async function buildCharSheetPromptWithClaude(images, brand, category) {
+  // images is an array of data URLs. Uses the central Claude client; the BYO
+  // override key (if any) is applied inside callClaude.
   const imageBlocks = (Array.isArray(images) ? images : [images]).map(dataUrl => {
     const [header, base64] = dataUrl.split(',')
     const mediaType = header.match(/:(.*?);/)?.[1] || 'image/jpeg'
@@ -36,42 +41,24 @@ export async function buildCharSheetPromptWithClaude(images, brand, category, ap
   })
 
   const imageCount = imageBlocks.length
-  const res = await fetch('/api/claude', {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      'x-api-key': apiKey,
-      'anthropic-version': '2023-06-01',
-    },
-    body: JSON.stringify({
-      model: 'claude-sonnet-4-6',
-      max_tokens: 2000,
-      system: `You are a luxury product expert and photography director. You have deep knowledge of designer brands, product lines, and how they look from every angle. You study product images and use your training knowledge to produce detailed, accurate descriptions. Output JSON only — nothing else.`,
-      messages: [{
-        role: 'user',
-        content: [
-          ...imageBlocks,
-          { type: 'text', text: `Brand: ${brand}${category ? `\nCategory: ${category}` : ''}
-
-You have been given ${imageCount} image${imageCount > 1 ? 's' : ''} of this product from different angles. Study all of them and identify exactly what product this is. Use what you can see across all images AND your training knowledge to describe it accurately from every angle.
-
-Output a JSON object with exactly two fields:
-
-"productDesc" — a precise, complete description covering the entire product: exact colors on every surface, materials, all logos and text (front, back, sides, interior), construction details, hardware. Use your knowledge of this product line to fill in surfaces not visible in the image. Be specific and confident — no hedging words like "likely" or "typically". Write it as definitive fact.
-
-"angles" — exactly 6 panel descriptions for a professional character sheet, each with specific visual details for that angle. Use your product knowledge to describe what is actually on each surface — the real back closure, real side panels, real sole or lining — not generic guesses. Example for a cap: "front view showing embroidered H logo on structured crown, left profile showing side panel seam and brim edge, right profile showing matching side panel, rear view showing metal Hermès clasp and tonal strap, top-down view showing crown stitching pattern, underside of brim showing contrast lining color and stitching"
-
-Output only valid JSON. No explanation, no markdown.` },
-        ],
-      }],
-    }),
+  const userText = renderTemplate(getTemplate('vision_user', DEFAULT_VISION_USER), {
+    brand,
+    categoryLine: category ? `\nCategory: ${category}` : '',
+    imageCount,
+    plural: imageCount > 1 ? 's' : '',
+  })
+  const { text } = await callClaude({
+    task: 'vision',
+    system: getPrompt('vision'),
+    messages: [{
+      role: 'user',
+      content: [
+        ...imageBlocks,
+        { type: 'text', text: userText },
+      ],
+    }],
   })
 
-  if (!res.ok) throw new Error(`Claude analysis failed (${res.status})`)
-  const data = await res.json()
-  if (data.error) throw new Error(data.error.message)
-
-  const text = data.content?.[0]?.text?.trim()
   if (!text) throw new Error('Claude returned empty response')
 
   // Try to extract JSON from anywhere in the response

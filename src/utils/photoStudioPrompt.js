@@ -1,6 +1,8 @@
 // GPT Image 2 Photo Studio prompt engine
 // Based on the photo-studio-influencer-guide.md realism spec
 
+import { getMap } from './aiConfig'
+
 export const LOCATIONS = [
   { id: 'coffee-shop',   label: 'Coffee Shop',    icon: '☕' },
   { id: 'city-street',   label: 'City Street',    icon: '🏙' },
@@ -75,7 +77,7 @@ export const EXPRESSIONS = [
   { id: 'serious',  label: 'Serious'   },
 ]
 
-const EXPRESSION_MAP = {
+export const EXPRESSION_MAP = {
   'natural':      '',
   'smiling':      'Expression: a genuine soft smile — lips parted slightly, upper teeth just visible, the smile reaching the outer corners of the eyes with warmth.',
   'laughing':     'Expression: caught mid-laugh at the apex — head tilted slightly back, eyes fully crinkled with genuine amusement, mouth open, the laugh spontaneous and unposed.',
@@ -126,7 +128,7 @@ export const OUTFIT_PRESETS_MALE = [
 // Keep old export for any code that still references it
 export const OUTFIT_PRESETS = OUTFIT_PRESETS_FEMALE.map(o => o.id)
 
-const OUTFIT_PRESET_MAP_FEMALE = {
+export const OUTFIT_PRESET_MAP_FEMALE = {
   Casual:     'High-waist straight-leg jeans, a fitted white tee or ribbed tank tucked at the front, white leather sneakers or ballet flats. Effortless and put-together.',
   Streetwear: 'Baggy cargo pants or wide-leg denim, an oversized graphic tee or cropped hoodie, chunky sneakers, a fitted cap or bucket hat. Bold and urban.',
   Chic:       'Tailored wide-leg trousers or a midi wrap skirt, a fitted silk or satin blouse, pointed-toe kitten heels or mules, delicate gold jewellery. Polished and intentional.',
@@ -137,7 +139,7 @@ const OUTFIT_PRESET_MAP_FEMALE = {
   Cozy:       'An oversized chunky knit cardigan or hoodie over a longline tee, soft wide-leg sweatpants or joggers, fluffy socks, slide sandals. Stay-home comfortable.',
 }
 
-const OUTFIT_PRESET_MAP_MALE = {
+export const OUTFIT_PRESET_MAP_MALE = {
   Casual:        'Well-fitted straight-leg jeans or chinos in a neutral tone, a clean crew-neck tee or lightweight chambray shirt, white leather sneakers. Everyday sharp.',
   Streetwear:    'Baggy cargo pants or wide-leg denim, an oversized graphic tee or heavyweight hoodie, chunky sneakers, a fitted cap or beanie. Urban and confident.',
   'Smart Casual': 'Slim dark jeans or tapered chinos, an untucked linen or Oxford button-down with sleeves rolled up, clean suede loafers or leather trainers. Effortlessly put-together.',
@@ -153,14 +155,16 @@ export function getOutfitPresets(gender) {
 }
 
 export function getOutfitPrompt(presetId, gender) {
-  const map = gender === 'Male' ? OUTFIT_PRESET_MAP_MALE : OUTFIT_PRESET_MAP_FEMALE
+  const map = gender === 'Male'
+    ? getMap('ps_outfits_male', OUTFIT_PRESET_MAP_MALE)
+    : getMap('ps_outfits_female', OUTFIT_PRESET_MAP_FEMALE)
   return map[presetId] || null
 }
 
 // ── Scene variants — 4 meaningfully distinct spots per location ───────────────
 // variationIdx selects which; lighting and time-of-day come from SHORT_LIGHTING separately.
 
-const SCENE_VARIANTS = {
+export const SCENE_VARIANTS = {
   'coffee-shop': [
     'Near the front window, street traffic soft and blurred outside the glass, a flat white on the small table beside her.',
     'Standing at the café counter, the espresso machine just behind, ceramic cups stacked on the shelf, the barista area softly out of focus.',
@@ -238,7 +242,7 @@ const SCENE_VARIANTS = {
 // ── Background people — cycles with variationIdx for natural variety ──────────
 // Even indexes = empty environment; odd indexes = soft background figures
 
-const BACKGROUND_PEOPLE = [
+export const BACKGROUND_PEOPLE = [
   'No other people in frame.',
   'One or two blurred figures in the far background, naturally present in the environment, completely out of focus.',
   'No other people in frame.',
@@ -247,7 +251,7 @@ const BACKGROUND_PEOPLE = [
 
 // ── Time of day — explicit atmosphere stated before the lighting note ─────────
 
-const TIME_ATMO = {
+export const TIME_ATMO = {
   'morning':     'Time of day: early morning — the sun has just risen, low on the horizon, the world is quiet and calm, air is cool and still.',
   'afternoon':   'Time of day: midday afternoon — the sun is high overhead, full bright daylight, warm temperatures, the day at its most active.',
   'golden-hour': 'Time of day: golden hour — the sun is sitting just at the horizon, warm amber and orange tones flood the entire scene, long soft shadows stretching across everything.',
@@ -256,7 +260,7 @@ const TIME_ATMO = {
 
 // ── Location label — explicit setting stated before the scene description ─────
 
-const LOCATION_LABEL = {
+export const LOCATION_LABEL = {
   'coffee-shop': 'The location is a coffee shop interior.',
   'city-street': 'The location is an outdoor city street.',
   'beach':       'The location is a beach outdoors.',
@@ -273,7 +277,7 @@ const LOCATION_LABEL = {
 
 // ── Short lighting (1 sentence per slot) ─────────────────────────────────────
 
-const SHORT_LIGHTING = {
+export const SHORT_LIGHTING = {
   'coffee-shop': {
     morning:       'Soft morning window light from one side, cool and directional.',
     afternoon:     'Warm filtered window light, slight tungsten from overhead pendants.',
@@ -352,7 +356,7 @@ const SHORT_LIGHTING = {
 // ── Pose descriptions ─────────────────────────────────────────────────────────
 // All poses — keyed by pose ID, used in buildPhotoStudioPrompt
 
-const POSE_MAP = {
+export const POSE_MAP = {
   // ── Female standing ─────────────────────────────────────────
   plandid:
     'Natural plandid moment — caught in a real activity, not posing. Interacting with the environment, not looking at the camera.',
@@ -400,7 +404,7 @@ const POSE_MAP = {
 
 // Specific candid actions — one is picked deterministically per image slot.
 // "laughing" is excluded here; it's reserved for the laughing expression preset.
-const CANDID_ACTIONS = [
+export const CANDID_ACTIONS = [
   'caught mid-sip, raising a drink to their lips',
   'caught mid-step, walking naturally',
   'caught mid-reach, grabbing something nearby',
@@ -436,7 +440,9 @@ export function buildPhotoStudioPrompt({ influencer, location, timeOfDay, pose, 
 
   // ── Wardrobe — ref tag if available, text description otherwise ───
   const gender = influencer?.gender || 'Female'
-  const outfitMap = gender === 'Male' ? OUTFIT_PRESET_MAP_MALE : OUTFIT_PRESET_MAP_FEMALE
+  const outfitMap = gender === 'Male'
+    ? getMap('ps_outfits_male', OUTFIT_PRESET_MAP_MALE)
+    : getMap('ps_outfits_female', OUTFIT_PRESET_MAP_FEMALE)
   const hasHairstyleOverride = !!hairstyleText?.trim()
   const wardrobe = wardrobeTag
     ? `the complete outfit from ${wardrobeTag} — reproduce every item exactly as shown: all clothing, headwear, and accessories must match the reference. If headwear is present in the reference, it must be worn on the head${hasHairstyleOverride ? '' : '. Match the hairstyle from this reference exactly'}`
@@ -452,18 +458,20 @@ export function buildPhotoStudioPrompt({ influencer, location, timeOfDay, pose, 
     : ''
 
   // ── Pose — kept detailed, this is the primary direction ───────────
+  const poseMap = getMap('ps_poses', POSE_MAP)
+  const candidActions = getMap('ps_candid_actions', CANDID_ACTIONS)
   let basePose
   if (poseId === 'candid') {
     // Pick one specific action — never give the model a list of options.
     // Use variationIdx so each slot in a batch gets a different action.
-    const idx = variationIdx !== null ? variationIdx : Math.floor(Math.random() * CANDID_ACTIONS.length)
-    const action = CANDID_ACTIONS[idx % CANDID_ACTIONS.length]
+    const idx = variationIdx !== null ? variationIdx : Math.floor(Math.random() * candidActions.length)
+    const action = candidActions[idx % candidActions.length]
     basePose = `Candid pose — ${action}. Unaware of the camera.`
-  } else if (POSE_MAP[poseId]) {
-    basePose = POSE_MAP[poseId]
+  } else if (poseMap[poseId]) {
+    basePose = poseMap[poseId]
   } else {
     // Custom pose text typed by the user
-    basePose = poseId.trim() || POSE_MAP['front']
+    basePose = poseId.trim() || poseMap['front']
   }
   const stancePrefix = isSitting
     ? 'Subject is clearly seated. '
@@ -471,8 +479,9 @@ export function buildPhotoStudioPrompt({ influencer, location, timeOfDay, pose, 
   const poseDesc = stancePrefix + basePose
 
   // ── Expression (omit if natural; use custom text if not a known preset) ─
-  const expressionDesc = EXPRESSION_MAP[expression] !== undefined
-    ? (EXPRESSION_MAP[expression] || '')
+  const exprMap = getMap('ps_expressions', EXPRESSION_MAP)
+  const expressionDesc = exprMap[expression] !== undefined
+    ? (exprMap[expression] || '')
     : (expression?.trim() ? `Expression: ${expression.trim()}.` : '')
 
   // ── Gaze direction — suppressed when back is fully to camera ────────
@@ -512,8 +521,15 @@ export function buildPhotoStudioPrompt({ influencer, location, timeOfDay, pose, 
     return lines.join(' ')
   })()
 
+  // ── Scene / background / location / time / lighting (override-aware) ──
+  const sceneVariants   = getMap('ps_scene_variants', SCENE_VARIANTS)
+  const backgroundPeople = getMap('ps_background_people', BACKGROUND_PEOPLE)
+  const locationLabelMap = getMap('ps_location_label', LOCATION_LABEL)
+  const timeAtmoMap     = getMap('ps_time_atmo', TIME_ATMO)
+  const shortLighting   = getMap('ps_lighting', SHORT_LIGHTING)
+
   // ── Scene — distinct spot per variation ──────────────────────────
-  const variants = SCENE_VARIANTS[loc]
+  const variants = sceneVariants[loc]
   const scene = variants
     ? variants[variationIdx !== null ? variationIdx % variants.length : Math.floor(Math.random() * variants.length)]
     : ''
@@ -521,12 +537,12 @@ export function buildPhotoStudioPrompt({ influencer, location, timeOfDay, pose, 
   // ── Background people — mirror selfie locations are always empty; others cycle ───
   const peopleLine = (loc === 'bathroom' || loc === 'bedroom' || loc === 'hotel')
     ? 'No other people in frame.'
-    : BACKGROUND_PEOPLE[variationIdx !== null ? variationIdx % BACKGROUND_PEOPLE.length : 0]
+    : backgroundPeople[variationIdx !== null ? variationIdx % backgroundPeople.length : 0]
 
   // ── Location label + time atmosphere + lighting ───────────────────
-  const locationLabel = LOCATION_LABEL[loc] || (loc?.trim() ? `The location is ${loc.trim()}.` : '')
-  const timeAtmo      = TIME_ATMO[tod]      || ''
-  const light         = SHORT_LIGHTING[loc]?.[tod] || ''
+  const locationLabel = locationLabelMap[loc] || (loc?.trim() ? `The location is ${loc.trim()}.` : '')
+  const timeAtmo      = timeAtmoMap[tod]      || ''
+  const light         = shortLighting[loc]?.[tod] || ''
 
   // ── Camera + framing ──────────────────────────────────────────────
   const cameraFeel = vibe === 'editorial' ? 'Eye-level, 50mm lens feel.'

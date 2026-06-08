@@ -243,7 +243,19 @@ async function handleSearch(request, url) {
   }
 }
 
-async function handleClaudeProxy(request) {
+// Resolve the Anthropic upstream URL. When an AI Gateway is configured
+// (account id + gateway name), route through Cloudflare AI Gateway for
+// logging/caching/cost/rate-limit/fallback; otherwise hit Anthropic directly.
+function anthropicMessagesUrl(env) {
+  const account = env?.CF_AIG_ACCOUNT_ID
+  const gateway = env?.CF_AIG_GATEWAY
+  if (account && gateway) {
+    return `https://gateway.ai.cloudflare.com/v1/${account}/${gateway}/anthropic/v1/messages`
+  }
+  return 'https://api.anthropic.com/v1/messages'
+}
+
+async function handleClaudeProxy(request, env) {
   const headers = corsHeaders(request, 'POST, OPTIONS')
   if (request.method === 'OPTIONS') {
     return new Response(null, { status: 204, headers })
@@ -261,8 +273,10 @@ async function handleClaudeProxy(request) {
     )
   }
 
-  const apiKey = request.headers.get('x-api-key')
-  if (!apiKey) return json({ error: { message: 'Missing x-api-key header' } }, 400, headers)
+  // Caller-provided key (BYO override) wins; otherwise use the central 2zero
+  // key from the Worker secret. 401 if neither is available.
+  const apiKey = request.headers.get('x-api-key') || env?.ANTHROPIC_API_KEY
+  if (!apiKey) return json({ error: { message: 'No Claude API key configured' } }, 401, headers)
 
   try {
     const upstreamHeaders = {
@@ -272,8 +286,10 @@ async function handleClaudeProxy(request) {
     }
     const beta = request.headers.get('anthropic-beta')
     if (beta) upstreamHeaders['anthropic-beta'] = beta
+    // Optional: authenticated AI Gateway token (only if the gateway requires it)
+    if (env?.CF_AIG_TOKEN) upstreamHeaders['cf-aig-authorization'] = `Bearer ${env.CF_AIG_TOKEN}`
 
-    const upstream = await fetch('https://api.anthropic.com/v1/messages', {
+    const upstream = await fetch(anthropicMessagesUrl(env), {
       method: 'POST',
       headers: upstreamHeaders,
       body: request.body,
@@ -294,7 +310,7 @@ async function handleClaudeProxy(request) {
   }
 }
 
-async function handleApi(request) {
+async function handleApi(request, env) {
   const url = new URL(request.url)
 
   if (url.pathname === '/api/health') {
@@ -308,18 +324,28 @@ async function handleApi(request) {
     })
   }
 
+  // AI configuration status for the dashboard — booleans only, never secrets.
+  if (url.pathname === '/api/ai/status') {
+    const headers = corsHeaders(request, 'GET, OPTIONS')
+    if (request.method === 'OPTIONS') return new Response(null, { status: 204, headers })
+    return json({
+      centralKey: Boolean(env?.ANTHROPIC_API_KEY),
+      gateway: Boolean(env?.CF_AIG_ACCOUNT_ID && env?.CF_AIG_GATEWAY),
+    }, 200, headers)
+  }
+
   if (url.pathname.startsWith('/api/hf')) return handleHiggsfieldProxy(request, url)
   if (url.pathname === '/api/img-proxy') return handleImageProxy(request, url)
   if (url.pathname === '/api/search') return handleSearch(request, url)
-  if (url.pathname === '/api/claude') return handleClaudeProxy(request)
+  if (url.pathname === '/api/claude') return handleClaudeProxy(request, env)
 
   return json({ error: 'Not found' }, 404)
 }
 
 export default {
-  async fetch(request) {
+  async fetch(request, env) {
     try {
-      return await handleApi(request)
+      return await handleApi(request, env)
     } catch (error) {
       logWorkerEvent({ route: 'unhandled', status: 500, reason: error.message })
       return json({ error: 'Internal server error' }, 500)

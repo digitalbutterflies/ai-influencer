@@ -13,6 +13,7 @@ const Inspiration = lazy(() => import('./pages/Inspiration'))
 const BrandDeals = lazy(() => import('./pages/BrandDeals'))
 const Create = lazy(() => import('./pages/Create'))
 const Settings = lazy(() => import('./pages/Settings'))
+const AIStudio = lazy(() => import('./pages/AIStudio'))
 const AuthCallback = lazy(() => import('./pages/AuthCallback'))
 
 const FEEDBACK_FORM_URL = 'https://forms.gle/p5cBXw4sYaHPdcANA'
@@ -75,6 +76,7 @@ export default function App() {
           <Route path="/inspiration" element={<Inspiration />} />
           <Route path="/brand-deals" element={<BrandDeals />} />
           <Route path="/create" element={<Create />} />
+          <Route path="/ai" element={<AIStudio />} />
           <Route path="/settings" element={<Settings />} />
           <Route path="/auth/callback" element={<AuthCallback />} />
           <Route path="*" element={<Navigate to="/" replace />} />

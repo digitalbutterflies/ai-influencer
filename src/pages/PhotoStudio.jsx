@@ -642,17 +642,14 @@ export default function PhotoStudioPanel({ influencer, onGoToWardrobe, onUseAsSt
     setPropProgress(p => ({ ...p, [targetIdx]: 0 }))
     try {
       let prompt = null
-      const claudeKey = localStorage.getItem('claude_api_key')
-      if (claudeKey) {
-        try {
-          setPropProgress(p => ({ ...p, [targetIdx]: 5 }))
-          setPropClaudeStatus(s => ({ ...s, [targetIdx]: 'analyzing' }))
-          prompt = await buildCharSheetPromptWithClaude(slot.image, propText || 'product', '', claudeKey)
-          setPropClaudeStatus(s => ({ ...s, [targetIdx]: 'done' }))
-          setTimeout(() => setPropClaudeStatus(s => ({ ...s, [targetIdx]: null })), 3000)
-        } catch (e) {
-          setPropClaudeStatus(s => ({ ...s, [targetIdx]: null }))
-        }
+      try {
+        setPropProgress(p => ({ ...p, [targetIdx]: 5 }))
+        setPropClaudeStatus(s => ({ ...s, [targetIdx]: 'analyzing' }))
+        prompt = await buildCharSheetPromptWithClaude(slot.image, propText || 'product', '')
+        setPropClaudeStatus(s => ({ ...s, [targetIdx]: 'done' }))
+        setTimeout(() => setPropClaudeStatus(s => ({ ...s, [targetIdx]: null })), 3000)
+      } catch (e) {
+        setPropClaudeStatus(s => ({ ...s, [targetIdx]: null }))
       }
       if (!prompt) prompt = buildCharSheetPrompt(propText || 'product', '')
       setPropProgress(p => ({ ...p, [targetIdx]: 15 }))

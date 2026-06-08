@@ -124,7 +124,7 @@ export default function Settings() {
 
         <Section title="Claude AI">
           <p style={{ fontSize: 13, color: 'var(--text-secondary)', marginBottom: 16, lineHeight: 1.6 }}>
-            Add your Anthropic API key to let Claude analyze the image just before generating your product character sheet.
+            Claude is managed centrally for the team in the <strong>AI Dashboard</strong>. This optional personal key <strong>overrides</strong> the central key for your browser only (e.g. for testing). Leave empty to use the central key.
           </p>
           {claudeKey ? (
             <div>

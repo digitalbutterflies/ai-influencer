@@ -1,3 +1,5 @@
+import { getMap } from './aiConfig'
+
 // ── Helpers ───────────────────────────────────────────────────
 const R = arr => arr[Math.floor(Math.random() * arr.length)]
 
@@ -535,7 +537,7 @@ const VIBE_TAG_MAP = {
 }
 
 // Vibe → color palette hint injected into the Wardrobe section
-const VIBE_PALETTE_MAP = {
+export const VIBE_PALETTE_MAP = {
   'Minimalist':    'Palette: muted neutrals — off-white, ecru, stone, warm grey, oat. No strong saturated colors.',
   'Editorial':     'Palette: bold monochrome or one statement color — all-black, deep charcoal, pure white, or a single saturated hue.',
   'Streetwear':    'Palette: washed-out neutrals — faded black, washed grey, dirty white, faded indigo denim.',
@@ -933,7 +935,7 @@ function selectWardrobe(gender, vibeWords, personality, physicalDesc, backstory,
 }
 
 // ── Scene pools by niche ──────────────────────────────────────
-const SCENE_POOLS = {
+export const SCENE_POOLS = {
   fashion: [
     'sun-drenched SoHo loft, whitewashed exposed brick, tall factory windows, morning light pooling on oak floors',
     'Paris Le Marais narrow side street, charcoal limestone facades, cobblestones faintly damp, warm afternoon shade with a bright lane-end opening behind',
@@ -1028,7 +1030,8 @@ function getScenePool(niches) {
   if (!niches || niches.length === 0) return ALL_SCENES
   const keys = [...new Set(niches.map(n => NICHE_TO_SCENE_KEY[n.toLowerCase()]).filter(Boolean))]
   if (keys.length === 0) return ALL_SCENES
-  const pool = keys.flatMap(k => SCENE_POOLS[k] || [])
+  const scenePools = getMap('create_scene_pools', SCENE_POOLS)
+  const pool = keys.flatMap(k => scenePools[k] || [])
   return pool.length > 0 ? pool : ALL_SCENES
 }
 
@@ -1188,6 +1191,9 @@ export function buildDirectPrompt(d, forcePose = null, options = {}, aspectRatio
   const personality = d.personality ?? 50
   const backstory = d.backstory?.trim() || ''
   const isEditorial = vibes.includes('Editorial')
+  // Override-aware (AI Dashboard); falls back to defaults when not customized.
+  const scenePools = getMap('create_scene_pools', SCENE_POOLS)
+  const vibePalette = getMap('create_vibe_palette', VIBE_PALETTE_MAP)
 
   // Always run tier-3 — it owns buildHint, physicalDetail, lockedScene.
   // Claude (tier-2) contributes dailyContext and can override sceneNiche/tags for unusual professions.
@@ -1211,15 +1217,15 @@ export function buildDirectPrompt(d, forcePose = null, options = {}, aspectRatio
   if (options.backstoryLocked) {
     if (lockedScene) {
       scene = lockedScene
-    } else if (sceneNiche && SCENE_POOLS[sceneNiche]) {
-      scene = R(SCENE_POOLS[sceneNiche])
+    } else if (sceneNiche && scenePools[sceneNiche]) {
+      scene = R(scenePools[sceneNiche])
     } else {
       scene = R(getScenePool(niches))
     }
   } else if (options.forceOutdoor) {
     scene = R(OUTDOOR_CANDID_SCENES)
-  } else if (sceneNiche && SCENE_POOLS[sceneNiche]) {
-    scene = R(SCENE_POOLS[sceneNiche])
+  } else if (sceneNiche && scenePools[sceneNiche]) {
+    scene = R(scenePools[sceneNiche])
   } else {
     scene = R(getScenePool(niches))
   }
@@ -1242,7 +1248,7 @@ export function buildDirectPrompt(d, forcePose = null, options = {}, aspectRatio
     : null
   const wardrobeBase = selectWardrobe(gender, vibes, personality, d.physicalDesc, d.backstory, forcedProfTags)
   const paletteLine = options.model !== 'soul_2'
-    ? vibes.map(v => VIBE_PALETTE_MAP[v]).filter(Boolean).join(' | ')
+    ? vibes.map(v => vibePalette[v]).filter(Boolean).join(' | ')
     : ''
   const wardrobe = paletteLine ? `${wardrobeBase}\n${paletteLine}` : wardrobeBase
   const camera = getCamera()

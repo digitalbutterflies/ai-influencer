@@ -1,4 +1,4 @@
-import { defineConfig } from 'vite'
+import { defineConfig, loadEnv } from 'vite'
 import react from '@vitejs/plugin-react'
 
 // Local dev search proxy - mirrors the Cloudflare Worker /api/search route
@@ -65,50 +65,72 @@ const imgProxyPlugin = {
   },
 }
 
-// Local dev Claude proxy - mirrors the Cloudflare Worker /api/claude route
-const claudePlugin = {
-  name: 'claude-proxy',
-  configureServer(server) {
-    server.middlewares.use('/api/claude', async (req, res) => {
-      res.setHeader('Access-Control-Allow-Origin', '*')
-      res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS')
-      res.setHeader('Access-Control-Allow-Headers', 'Content-Type, x-api-key, anthropic-version, anthropic-beta')
-      if (req.method === 'OPTIONS') { res.writeHead(200); res.end(); return }
-      if (req.method !== 'POST') { res.writeHead(405); res.end('Method not allowed'); return }
-      const apiKey = req.headers['x-api-key']
-      if (!apiKey) { res.writeHead(400, { 'Content-Type': 'application/json' }); res.end(JSON.stringify({ error: { message: 'Missing x-api-key' } })); return }
-      const chunks = []
-      req.on('data', c => chunks.push(c))
-      await new Promise(r => req.on('end', r))
-      const body = Buffer.concat(chunks).toString()
-      try {
-        const upstreamHeaders = {
-          'x-api-key': apiKey,
-          'anthropic-version': req.headers['anthropic-version'] || '2023-06-01',
-          'content-type': 'application/json',
+// Local dev Claude proxy - mirrors the Cloudflare Worker /api/claude route.
+// Factory: receives env (from loadEnv) so dev uses the same central key +
+// AI Gateway routing as production. Put values in .env.local.
+function claudePlugin(env) {
+  const messagesUrl = (env.CF_AIG_ACCOUNT_ID && env.CF_AIG_GATEWAY)
+    ? `https://gateway.ai.cloudflare.com/v1/${env.CF_AIG_ACCOUNT_ID}/${env.CF_AIG_GATEWAY}/anthropic/v1/messages`
+    : 'https://api.anthropic.com/v1/messages'
+  return {
+    name: 'claude-proxy',
+    configureServer(server) {
+      // Mirror /api/ai/status for dashboard parity in dev.
+      server.middlewares.use('/api/ai/status', (req, res) => {
+        res.setHeader('Access-Control-Allow-Origin', '*')
+        res.writeHead(200, { 'Content-Type': 'application/json' })
+        res.end(JSON.stringify({
+          centralKey: Boolean(env.ANTHROPIC_API_KEY),
+          gateway: Boolean(env.CF_AIG_ACCOUNT_ID && env.CF_AIG_GATEWAY),
+        }))
+      })
+      server.middlewares.use('/api/claude', async (req, res) => {
+        res.setHeader('Access-Control-Allow-Origin', '*')
+        res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS')
+        res.setHeader('Access-Control-Allow-Headers', 'Content-Type, x-api-key, anthropic-version, anthropic-beta')
+        if (req.method === 'OPTIONS') { res.writeHead(200); res.end(); return }
+        if (req.method !== 'POST') { res.writeHead(405); res.end('Method not allowed'); return }
+        const apiKey = req.headers['x-api-key'] || env.ANTHROPIC_API_KEY
+        if (!apiKey) { res.writeHead(401, { 'Content-Type': 'application/json' }); res.end(JSON.stringify({ error: { message: 'No Claude API key configured' } })); return }
+        const chunks = []
+        req.on('data', c => chunks.push(c))
+        await new Promise(r => req.on('end', r))
+        const body = Buffer.concat(chunks).toString()
+        try {
+          const upstreamHeaders = {
+            'x-api-key': apiKey,
+            'anthropic-version': req.headers['anthropic-version'] || '2023-06-01',
+            'content-type': 'application/json',
+          }
+          if (req.headers['anthropic-beta']) upstreamHeaders['anthropic-beta'] = req.headers['anthropic-beta']
+          if (env.CF_AIG_TOKEN) upstreamHeaders['cf-aig-authorization'] = `Bearer ${env.CF_AIG_TOKEN}`
+          const upstream = await fetch(messagesUrl, { method: 'POST', headers: upstreamHeaders, body })
+          const data = await upstream.json()
+          res.writeHead(upstream.status, { 'Content-Type': 'application/json' })
+          res.end(JSON.stringify(data))
+        } catch (e) {
+          res.writeHead(500, { 'Content-Type': 'application/json' })
+          res.end(JSON.stringify({ error: { message: e.message } }))
         }
-        if (req.headers['anthropic-beta']) upstreamHeaders['anthropic-beta'] = req.headers['anthropic-beta']
-        const upstream = await fetch('https://api.anthropic.com/v1/messages', { method: 'POST', headers: upstreamHeaders, body })
-        const data = await upstream.json()
-        res.writeHead(upstream.status, { 'Content-Type': 'application/json' })
-        res.end(JSON.stringify(data))
-      } catch (e) {
-        res.writeHead(500, { 'Content-Type': 'application/json' })
-        res.end(JSON.stringify({ error: { message: e.message } }))
-      }
-    })
-  },
+      })
+    },
+  }
 }
 
-export default defineConfig({
-  plugins: [react(), searchPlugin, imgProxyPlugin, claudePlugin],
-  server: {
-    proxy: {
-      '/api/hf': {
-        target: 'https://mcp.higgsfield.ai',
-        changeOrigin: true,
-        rewrite: path => path.replace(/^\/api\/hf/, ''),
+export default defineConfig(({ mode }) => {
+  // Load .env.local (and .env*) so the dev proxy can use the central key +
+  // AI Gateway, matching the production Worker. '' prefix = load all vars.
+  const env = loadEnv(mode, process.cwd(), '')
+  return {
+    plugins: [react(), searchPlugin, imgProxyPlugin, claudePlugin(env)],
+    server: {
+      proxy: {
+        '/api/hf': {
+          target: 'https://mcp.higgsfield.ai',
+          changeOrigin: true,
+          rewrite: path => path.replace(/^\/api\/hf/, ''),
+        },
       },
     },
-  },
+  }
 })
