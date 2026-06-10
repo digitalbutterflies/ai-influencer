@@ -1,5 +1,6 @@
-import { useState, useRef } from 'react'
-import { useBrandDeals, generateId } from '../store'
+import { useState, useRef, useMemo } from 'react'
+import { useNavigate } from 'react-router-dom'
+import { useBrandDeals, useInfluencers, generateId } from '../store'
 import { compressImage, downloadImage } from '../utils/imageUtils'
 import { generateSingleImage } from '../utils/higgsfieldGenerate'
 import { isHFConnected } from '../utils/higgsfieldAuth'
@@ -115,7 +116,7 @@ function NewDealModal({ onClose, onSave }) {
   )
 }
 
-function DealCard({ deal, generating, progress, onDelete, onOpen, onRename, onGenerate }) {
+function DealCard({ deal, cast = [], generating, progress, onDelete, onOpen, onRename, onGenerate, onOpenInfluencer }) {
   const [editing, setEditing] = useState(false)
   const [name, setName] = useState(deal.brand)
   const [showSheet, setShowSheet] = useState(true)
@@ -283,6 +284,44 @@ function DealCard({ deal, generating, progress, onDelete, onOpen, onRename, onGe
         </div>
       </div>
 
+      {/* Cast — Futurefluencers promoting this brand */}
+      <div style={{
+        padding: '10px 14px',
+        borderTop: '1px solid var(--border-subtle)',
+        display: 'flex', alignItems: 'center', gap: 9, minHeight: 22,
+      }}>
+        <span style={{ fontSize: 10, fontWeight: 700, color: 'var(--text-tertiary)', textTransform: 'uppercase', letterSpacing: '0.5px', flexShrink: 0 }}>Cast</span>
+        {cast.length === 0 ? (
+          <span style={{ fontSize: 11, color: 'var(--text-tertiary)' }}>No influencer cast yet</span>
+        ) : (
+          <>
+            <div style={{ display: 'flex' }} onClick={e => e.stopPropagation()}>
+              {cast.slice(0, 5).map((m, i) => (
+                <button
+                  key={m.id}
+                  title={`Open ${m.name}`}
+                  onClick={() => onOpenInfluencer(m.id)}
+                  style={{
+                    width: 26, height: 26, borderRadius: '50%', overflow: 'hidden',
+                    border: '2px solid var(--surface)', background: 'var(--bg-tertiary)',
+                    marginLeft: i === 0 ? 0 : -8, padding: 0, cursor: 'pointer', flexShrink: 0,
+                    display: 'flex', alignItems: 'center', justifyContent: 'center',
+                  }}
+                >
+                  {m.mainImage
+                    ? <img loading="lazy" decoding="async" src={m.mainImage} alt={m.name} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                    : <span style={{ fontSize: 11, fontWeight: 700, color: 'var(--text-secondary)' }}>{m.name[0]?.toUpperCase()}</span>
+                  }
+                </button>
+              ))}
+            </div>
+            <span style={{ fontSize: 11, color: 'var(--text-secondary)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+              {cast.length === 1 ? cast[0].name : `${cast.length} influencers`}
+            </span>
+          </>
+        )}
+      </div>
+
       <style>{`@keyframes spin { to { transform: rotate(360deg) } }`}</style>
     </div>
   )
@@ -290,10 +329,35 @@ function DealCard({ deal, generating, progress, onDelete, onOpen, onRename, onGe
 
 export default function BrandDeals() {
   const [deals, setDeals] = useBrandDeals()
+  const [influencers] = useInfluencers()
+  const navigate = useNavigate()
   const [showNew, setShowNew] = useState(false)
   const [lightboxDeal, setLightboxDeal] = useState(null)
   const [generating, setGenerating] = useState({})   // { [id]: bool }
   const [genProgress, setGenProgress] = useState({}) // { [id]: 0–100 }
+
+  // Map each brand name → the influencers cast for it. An influencer is "cast"
+  // for a brand when one of their per-influencer brand deals matches the brand
+  // name (case-insensitive), the same key the import flow uses to link them.
+  const castByBrand = useMemo(() => {
+    const map = {}
+    for (const inf of influencers || []) {
+      const brands = new Set(
+        (inf.brandDeals || [])
+          .map(d => d.brand?.toLowerCase().trim())
+          .filter(Boolean)
+      )
+      for (const b of brands) {
+        if (!map[b]) map[b] = []
+        map[b].push({ id: inf.id, name: inf.name, mainImage: inf.mainImage })
+      }
+    }
+    return map
+  }, [influencers])
+
+  function openInfluencer(id) {
+    navigate('/influencers', { state: { selectId: id } })
+  }
 
   function addDeal({ brand, category, image }) {
     setDeals(prev => [...prev, { id: generateId(), brand, category, image, createdAt: Date.now() }])
@@ -399,12 +463,14 @@ export default function BrandDeals() {
               <DealCard
                 key={deal.id}
                 deal={deal}
+                cast={castByBrand[deal.brand?.toLowerCase().trim()] || []}
                 generating={!!generating[deal.id]}
                 progress={genProgress[deal.id] || 0}
                 onDelete={deleteDeal}
                 onRename={renameDeal}
                 onOpen={() => setLightboxDeal(deal)}
                 onGenerate={handleGenerate}
+                onOpenInfluencer={openInfluencer}
               />
             ))}
           </div>
